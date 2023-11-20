@@ -45,27 +45,20 @@ fn jwt(private_key_id: &str, client_email: &str, audience: &str) -> (String, Str
     let expiry = iat + 3600 - 5;
 
     (
-        format!(
-            r#"{{
+        serde_json::json!({
             "alg": "RS256",
             "typ": "JWT",
-            "kid": "{private_key_id}"
-        }}"#
-        )
-        .replace(' ', "")
-        .replace('\n', ""),
-        format!(
-            r#"
-        {{
-            "iss": "{client_email}",
-            "sub": "{client_email}",
-            "aud": "{audience}",
-            "iat": {iat},
-            "exp": {expiry}
-        }}"#
-        )
-        .replace(' ', "")
-        .replace('\n', ""),
+            "kid": private_key_id
+        })
+        .to_string(),
+        serde_json::json!({
+            "iss": client_email,
+            "sub": client_email,
+            "aud": audience,
+            "iat": iat,
+            "exp": expiry
+        })
+        .to_string(),
     )
 }
 
