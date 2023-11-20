@@ -143,6 +143,7 @@ impl Signer {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! parse_json {
     ($($json:tt)+) => {
         ::serde_json::from_value(::serde_json::json!($($json)+)).expect("failed to deserialize")
