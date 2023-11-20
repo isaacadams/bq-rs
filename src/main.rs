@@ -1,5 +1,3 @@
-
-
 mod cli;
 
 fn main() {
