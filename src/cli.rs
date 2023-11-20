@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 
 pub fn run() {
     Cli::parse().command.run();
@@ -23,7 +23,7 @@ impl Commands {
         match &self {
             Commands::Query => {
                 let sa = gauth::load().unwrap();
-                let token = sa.access_token();
+                let _token = sa.access_token();
             }
         }
     }
