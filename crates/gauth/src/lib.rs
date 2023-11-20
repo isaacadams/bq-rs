@@ -1,5 +1,9 @@
 pub type BQAuthResult<T> = Result<T, BQAuthError>;
 
+pub fn load() -> Result<ServiceAccountKey, serde_json::Error> {
+    ServiceAccountKey::load()
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum BQAuthError {
     #[error("serde_json {0:?}")]
@@ -136,15 +140,15 @@ impl Signer {
     }
 }
 
-#[allow(unused_macros)]
-macro_rules! parse_json {
-    ($($json:tt)+) => {
-        ::serde_json::from_value(::serde_json::json!($($json)+)).expect("failed to deserialize")
-    }
-}
-
 #[cfg(test)]
 mod test {
+    #[allow(unused_macros)]
+    macro_rules! parse_json {
+        ($($json:tt)+) => {
+            ::serde_json::from_value(::serde_json::json!($($json)+)).expect("failed to deserialize")
+        }
+    }
+
     use super::ServiceAccountKey;
 
     fn service_account_test() -> ServiceAccountKey {
