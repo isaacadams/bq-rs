@@ -1,7 +1,10 @@
+use std::path::Path;
+
 pub type BQAuthResult<T> = Result<T, BQAuthError>;
 
-pub fn load() -> Result<ServiceAccountKey, serde_json::Error> {
-    ServiceAccountKey::load()
+pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, serde_json::Error> {
+    let creds = ServiceAccountKey::load(path);
+    ServiceAccountKey::from_str(&creds)
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -67,7 +70,18 @@ fn jwt(private_key_id: &str, client_email: &str, audience: &str) -> (String, Str
 }
 
 impl ServiceAccountKey {
-    pub fn load() -> Result<Self, serde_json::Error> {
+    pub fn from_str(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
+
+    pub fn load<P: AsRef<Path>>(path: Option<P>) -> String {
+        if let Some(path) = path {
+            match std::fs::read_to_string(path) {
+                Ok(creds) => return creds,
+                Err(_) => {}
+            }
+        }
+
         let sa = match dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
             .or(std::fs::read_to_string("./key.json"))
         {
@@ -77,7 +91,7 @@ impl ServiceAccountKey {
             }
         };
 
-        serde_json::from_str(&sa)
+        sa
     }
 
     pub fn jwt(&self, audience: &str) -> (String, String) {
