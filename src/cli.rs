@@ -1,30 +1,40 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 pub fn run() {
-    Cli::parse().command.run();
+    Cli::parse().run();
 }
 
-/// A fictional versioning CLI
-#[derive(Debug, Parser)] // requires `derive` feature
+#[derive(Debug, Parser)]
 #[command(name = "bq-rs")]
 #[command(about = "bigquery CLI client written in rust", long_about = None)]
 pub struct Cli {
+    /// Path to service account key
+    #[arg(short, long)]
+    key: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Query,
+    Query { query: String },
+    Token,
 }
 
-impl Commands {
+impl Cli {
     pub fn run(&self) {
-        match &self {
-            Commands::Query => {
-                let sa = gauth::load().unwrap();
-                let _token = sa.access_token();
+        let sa = gauth::load(self.key.as_ref()).unwrap();
+        let token = sa.access_token().unwrap();
+        match &self.command {
+            Commands::Query { query } => {
+                println!("{}", query);
             }
-        }
+            Commands::Token => {
+                println!("{}", token);
+            }
+        };
     }
 }
