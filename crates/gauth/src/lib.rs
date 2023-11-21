@@ -4,7 +4,7 @@ pub type BQAuthResult<T> = Result<T, BQAuthError>;
 
 pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, serde_json::Error> {
     let creds = ServiceAccountKey::load(path);
-    ServiceAccountKey::from_str(&creds)
+    ServiceAccountKey::deserialize(&creds)
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -64,28 +64,25 @@ fn jwt(private_key_id: &str, client_email: &str, audience: &str) -> (String, Str
 }
 
 impl ServiceAccountKey {
-    pub fn from_str(json: &str) -> Result<Self, serde_json::Error> {
+    pub fn deserialize(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
     }
 
     pub fn load<P: AsRef<Path>>(path: Option<P>) -> String {
         if let Some(path) = path {
-            match std::fs::read_to_string(path) {
-                Ok(creds) => return creds,
-                Err(_) => {}
+            if let Ok(creds) = std::fs::read_to_string(path) {
+                return creds;
             }
         }
 
-        let sa = match dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
+        match dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
             .or(std::fs::read_to_string("./key.json"))
         {
             Ok(sa) => sa,
             Err(e) => {
                 panic!("service account could not be found in GOOGLE_APPLICATION_CREDENTIALS environment variable or in local storage: {}", e);
             }
-        };
-
-        sa
+        }
     }
 
     pub fn jwt(&self, audience: &str) -> (String, String) {

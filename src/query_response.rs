@@ -91,6 +91,7 @@ impl QueryResponse {
         rows.join("\n")
     }
 
+    #[allow(dead_code)]
     pub fn as_json(self) -> serde_json::Value {
         let mut rows: Vec<serde_json::Value> = Vec::new();
 
