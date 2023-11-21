@@ -9,12 +9,6 @@ pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, serde_
 
 #[derive(thiserror::Error, Debug)]
 pub enum BQAuthError {
-    #[error("serde_json {0:?}")]
-    Serde(#[from] serde_json::Error),
-
-    #[error("reqwest {0:?}")]
-    Reqwest(#[from] reqwest::Error),
-
     #[error("std::io {0:?}")]
     IO(#[from] std::io::Error),
 
