@@ -46,13 +46,9 @@ impl Cli {
 
         match command {
             Commands::Query { query } => {
-                println!(
-                    "{}",
-                    client
-                        .jobs_query(QueryRequestBuilder::new(query).build())
-                        .into_string()
-                        .unwrap()
-                );
+                let response = client.jobs_query(QueryRequestBuilder::new(query).build());
+
+                println!("{:#?}", response.rows);
             }
             Commands::Token => {
                 println!("{}", client.token());
