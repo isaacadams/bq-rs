@@ -65,6 +65,63 @@ pub struct QueryResponse {
     pub num_dml_affected_rows: Option<String>,
 }
 
+impl QueryResponse {
+    pub fn as_csv(self) -> String {
+        let mut rows: Vec<String> = Vec::new();
+
+        if let Some(schema) = self.schema {
+            let header: Vec<String> = schema.fields.into_iter().map(|c| c.name).collect();
+            rows.push(header.join(","));
+        }
+
+        let mut values: Vec<String> = self
+            .rows
+            .into_iter()
+            .filter_map(|v| match v["f"].clone() {
+                serde_json::Value::Array(a) => {
+                    let row: Vec<String> = a.into_iter().map(|v| v["v"].to_string()).collect();
+                    Some(row.join(","))
+                }
+                _ => None,
+            })
+            .collect();
+
+        rows.append(values.as_mut());
+
+        rows.join("\n")
+    }
+
+    pub fn as_json(self) -> serde_json::Value {
+        let mut rows: Vec<serde_json::Value> = Vec::new();
+
+        if let Some(schema) = self.schema {
+            let header: Vec<serde_json::Value> = schema
+                .fields
+                .into_iter()
+                .map(|c| serde_json::Value::String(c.name))
+                .collect();
+
+            rows.push(serde_json::Value::Array(header));
+        }
+
+        let mut values: Vec<serde_json::Value> = self
+            .rows
+            .into_iter()
+            .filter_map(|v| match v["f"].clone() {
+                serde_json::Value::Array(a) => {
+                    let row = a.into_iter().map(|v| v["v"].clone()).collect();
+                    Some(serde_json::Value::Array(row))
+                }
+                _ => None,
+            })
+            .collect();
+
+        rows.append(values.as_mut());
+
+        serde_json::Value::Array(rows)
+    }
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableSchema {

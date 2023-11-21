@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
-use clap::{Parser, Subcommand};
-
 use crate::{api, query::QueryRequestBuilder};
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 pub fn run() {
     Cli::parse().run();
@@ -47,8 +45,7 @@ impl Cli {
         match command {
             Commands::Query { query } => {
                 let response = client.jobs_query(QueryRequestBuilder::new(query).build());
-
-                println!("{:#?}", response.rows);
+                println!("{}", response.as_csv());
             }
             Commands::Token => {
                 println!("{}", client.token());
