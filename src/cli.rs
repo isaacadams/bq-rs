@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+use crate::{api, query::QueryRequestBuilder};
+
 pub fn run() {
     Cli::parse().run();
 }
@@ -14,6 +16,10 @@ pub struct Cli {
     #[arg(short, long)]
     key: Option<PathBuf>,
 
+    /// Project id
+    #[arg(short, long)]
+    project_id: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -21,19 +27,38 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Query { query: String },
+    DatasetList { id: String },
     Token,
 }
 
 impl Cli {
-    pub fn run(&self) {
-        let sa = gauth::load(self.key.as_ref()).unwrap();
+    pub fn run(self) {
+        let (key, project_id, command) = (self.key, self.project_id, self.command);
+
+        let sa = gauth::load(key.as_ref()).unwrap();
         let token = sa.access_token().unwrap();
-        match &self.command {
+
+        let project_id = project_id
+            .or(sa.project_id)
+            .expect("project id is required");
+
+        let client = api::Client::bq_client(token, &project_id);
+
+        match command {
             Commands::Query { query } => {
-                println!("{}", query);
+                println!(
+                    "{}",
+                    client
+                        .jobs_query(QueryRequestBuilder::new(query).build())
+                        .into_string()
+                        .unwrap()
+                );
             }
             Commands::Token => {
-                println!("{}", token);
+                println!("{}", client.token());
+            }
+            Commands::DatasetList { id } => {
+                println!("{}", client.tables_list(&id).into_string().unwrap());
             }
         };
     }
