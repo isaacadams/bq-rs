@@ -2,6 +2,20 @@
 name = "bq-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["Isaac Adams <isaac.d.adams@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = """
+A CLI for querying BigQuery tables
+
+```bash
+bq-rs -k ./sa_key.json query "SELECT * FROM my-project.my-dataset.my-table"
+```
+
+Project homepage: https://github.com/isaacadams/bq-rs
+"""
+homepage = "https://github.com/isaacadams/bq-rs"
+repository = "https://github.com/isaacadams/bq-rs"
+keywords = ["gcp", "bigquery", "cli"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
@@ -12,7 +26,7 @@ path = "src/main.rs"
 members = [ "crates/*" ]
 
 [dependencies]
-gauthenticator = { path = "crates/gauthenticator", version = "0.1.0" }
+gauthenticator = { path = "crates/gauthenticator", version = "0.1.1" }
 clap = { version = "4.4.8", features = ["derive"] }
 ureq = "2.9.0"
 serde = {version = "1.0.192", features = ["serde_derive"]}
