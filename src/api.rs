@@ -30,8 +30,9 @@ impl Client {
         let result = endpoint.send_string(&request.serialize().unwrap());
 
         let response = Self::handle_error(result);
+        let response = response.into_string().unwrap();
 
-        serde_json::from_str(&response.into_string().unwrap()).unwrap()
+        serde_json::from_str(&response).unwrap()
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {
