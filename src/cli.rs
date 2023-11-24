@@ -33,7 +33,7 @@ impl Cli {
     pub fn run(self) {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = gauth::load(key.as_ref()).unwrap();
+        let sa = gauthenticator::load(key.as_ref()).unwrap();
         let token = sa.access_token().unwrap();
 
         let project_id = project_id
