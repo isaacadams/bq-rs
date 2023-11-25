@@ -1,16 +1,11 @@
 [package]
 name = "gauthenticator"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Isaac Adams <isaac.d.adams@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = """
 Simple API for authenticating with google services
-
-```rust
-let sa = gauthenticator::load("./service-account-key.json".as_ref()).unwrap();
-let token = sa.access_token().unwrap();
-```
 
 Project homepage: https://github.com/isaacadams/bq-rs
 """

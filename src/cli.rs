@@ -44,8 +44,9 @@ impl Cli {
 
         match command {
             Commands::Query { query } => {
-                let response = client.jobs_query(QueryRequestBuilder::new(query).build());
-                println!("{}", response.as_csv());
+                let thunk = client.jobs_query(QueryRequestBuilder::new(query).build());
+                let query_response = thunk.deserialize().unwrap();
+                println!("{}", query_response.as_csv());
             }
             Commands::Token => {
                 println!("{}", client.token());

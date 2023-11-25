@@ -1,4 +1,4 @@
-use crate::{query::QueryRequest, query_response::QueryResponse};
+use crate::{query::QueryRequest, query_response::QueryResponse, response_factory::ResponseThunk};
 use ureq::Request;
 
 pub struct Client {
@@ -23,16 +23,15 @@ impl Client {
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
-    pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
+    pub fn jobs_query(&self, request: QueryRequest) -> ResponseThunk<QueryResponse> {
         let endpoint = ureq::post(&format!("{}/queries", &self.host));
         let endpoint = self.defaults(endpoint);
 
         let result = endpoint.send_string(&request.serialize().unwrap());
 
         let response = Self::handle_error(result);
-        let response = response.into_string().unwrap();
 
-        serde_json::from_str(&response).unwrap()
+        ResponseThunk::<QueryResponse>::new(response)
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {

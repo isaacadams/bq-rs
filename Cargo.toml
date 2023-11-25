@@ -1,15 +1,11 @@
 [package]
 name = "bq-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Isaac Adams <isaac.d.adams@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = """
 A CLI for querying BigQuery tables
-
-```bash
-bq-rs -k ./sa_key.json query "SELECT * FROM my-project.my-dataset.my-table"
-```
 
 Project homepage: https://github.com/isaacadams/bq-rs
 """
