@@ -22,7 +22,7 @@ path = "src/main.rs"
 members = [ "crates/*" ]
 
 [dependencies]
-gauthenticator = { path = "crates/gauthenticator", version = "0.1.1" }
+gauthenticator = { path = "crates/gauthenticator", version = "0.1.2" }
 clap = { version = "4.4.8", features = ["derive"] }
 ureq = "2.9.0"
 serde = {version = "1.0.192", features = ["serde_derive"]}
