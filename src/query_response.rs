@@ -79,7 +79,18 @@ impl QueryResponse {
             .into_iter()
             .filter_map(|v| match v["f"].clone() {
                 serde_json::Value::Array(a) => {
-                    let row: Vec<String> = a.into_iter().map(|v| v["v"].to_string()).collect();
+                    let row: Vec<String> = a
+                        .into_iter()
+                        .map(|v| match v["v"].clone() {
+                            serde_json::Value::String(x) => x,
+                            serde_json::Value::Null => String::new(),
+                            serde_json::Value::Bool(x) => x.to_string(),
+                            serde_json::Value::Number(x) => x.to_string(),
+                            _ => String::new(),
+                            //serde_json::Value::Array(_) => todo!(),
+                            //serde_json::Value::Object(_) => todo!(),
+                        })
+                        .collect();
                     Some(row.join(","))
                 }
                 _ => None,
