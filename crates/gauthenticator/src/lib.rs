@@ -108,34 +108,31 @@ struct Signer {
 
 impl Signer {
     fn new(private_key: &str) -> Result<Self, std::io::Error> {
-        use rustls::sign::{self, SigningKey};
         use std::io;
+
         let key = Self::decode_rsa_key(private_key)?;
-        let signing_key = sign::RsaSigningKey::new(&key)
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Couldn't initialize signer"))?;
+        let signing_key = rustls::crypto::ring::sign::any_supported_type(&key.into())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+
         let signer = signing_key
             .choose_scheme(&[rustls::SignatureScheme::RSA_PKCS1_SHA256])
             .ok_or_else(|| {
                 io::Error::new(io::ErrorKind::Other, "Couldn't choose signing scheme")
             })?;
+
         Ok(Self { signer })
     }
 
     /// Decode a PKCS8 formatted RSA key.
-    fn decode_rsa_key(pem_pkcs8: &str) -> Result<rustls::PrivateKey, std::io::Error> {
+    fn decode_rsa_key(
+        pem_pkcs8: &str,
+    ) -> Result<rustls::pki_types::PrivatePkcs8KeyDer, std::io::Error> {
         use std::io;
-        let private_keys = rustls_pemfile::pkcs8_private_keys(&mut pem_pkcs8.as_bytes());
-
-        match private_keys {
-            Ok(mut keys) if !keys.is_empty() => {
-                keys.truncate(1);
-                Ok(rustls::PrivateKey(keys.remove(0)))
-            }
-            Ok(_) => Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Not enough private keys in PEM",
-            )),
-            Err(_) => Err(io::Error::new(
+        let mut reader = io::BufReader::new(pem_pkcs8.as_bytes());
+        let mut private_keys = rustls_pemfile::pkcs8_private_keys(&mut reader);
+        match private_keys.nth(0) {
+            Some(key) => key,
+            None => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "Error reading key from PEM",
             )),
