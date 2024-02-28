@@ -1,3 +1,5 @@
+use core::time;
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResponseDryRun {
@@ -66,6 +68,43 @@ pub struct QueryResponse {
 }
 
 impl QueryResponse {
+    pub fn retry(self, client: &crate::api::Client) -> Self {
+        if self.job_complete {
+            return self;
+        }
+
+        let Some(job_id) = &self.job_reference.job_id else {
+            panic!("no id found for incomplete job");
+        };
+
+        Self::_retry(client, job_id, &self.job_reference.location, None)
+    }
+
+    fn _retry(
+        client: &crate::api::Client,
+        job_id: &str,
+        job_location: &str,
+        retries: Option<u32>,
+    ) -> Self {
+        let retries = retries.unwrap_or(0);
+
+        if retries > 10 {
+            panic!("exceeded retry limit");
+        }
+
+        let base_delay = time::Duration::from_millis(400);
+        let delay = base_delay * 2_u32.pow(retries);
+        std::thread::sleep(delay);
+
+        let response = client.jobs_query_results(job_id, job_location);
+
+        if response.job_complete {
+            return response;
+        }
+
+        Self::_retry(client, job_id, job_location, Some(retries + 1))
+    }
+
     pub fn as_csv(self) -> String {
         let mut rows: Vec<String> = Vec::new();
 

@@ -21,17 +21,30 @@ impl Client {
         &self.token
     }
 
+    /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
+    pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
+        let endpoint =
+            ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location);
+        let endpoint = self.defaults(endpoint);
+        let result = endpoint.call();
+        let response = Self::handle_error(result);
+        ResponseThunk::<QueryResponse>::new(response)
+            .deserialize()
+            .unwrap()
+    }
+
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
-    pub fn jobs_query(&self, request: QueryRequest) -> ResponseThunk<QueryResponse> {
+    pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
         let endpoint = ureq::post(&format!("{}/queries", &self.host));
         let endpoint = self.defaults(endpoint);
-
         let result = endpoint.send_string(&request.serialize().unwrap());
-
         let response = Self::handle_error(result);
+        let response = ResponseThunk::<QueryResponse>::new(response)
+            .deserialize()
+            .unwrap();
 
-        ResponseThunk::<QueryResponse>::new(response)
+        response.retry(&self)
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {

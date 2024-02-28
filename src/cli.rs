@@ -3,7 +3,9 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 pub fn run() {
-    Cli::parse().run();
+    if let Err(e) = Cli::parse().run() {
+        eprintln!("{}", e);
+    }
 }
 
 #[derive(Debug, Parser)]
@@ -30,11 +32,11 @@ enum Commands {
 }
 
 impl Cli {
-    pub fn run(self) {
+    pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = gauthenticator::load(key.as_ref()).unwrap();
-        let token = sa.access_token().unwrap();
+        let sa = gauthenticator::load(key.as_ref())?;
+        let token = sa.access_token()?;
 
         let project_id = project_id
             .or(sa.project_id)
@@ -44,16 +46,18 @@ impl Cli {
 
         match command {
             Commands::Query { query } => {
-                let thunk = client.jobs_query(QueryRequestBuilder::new(query).build());
-                let query_response = thunk.deserialize().unwrap();
+                let request = QueryRequestBuilder::new(query).build();
+                let query_response = client.jobs_query(request);
                 println!("{}", query_response.as_csv());
             }
             Commands::Token => {
                 println!("{}", client.token());
             }
             Commands::DatasetList { id } => {
-                println!("{}", client.tables_list(&id).into_string().unwrap());
+                println!("{}", client.tables_list(&id).into_string()?);
             }
         };
+
+        Ok(())
     }
 }

@@ -5,5 +5,6 @@ mod query_response;
 mod response_factory;
 
 fn main() {
+    env_logger::init();
     cli::run();
 }
