@@ -18,6 +18,8 @@ pub enum BQAuthError {
 
 /// this is the audience (aud) in the JWT
 const BIG_QUERY_AUTH_URL: &str = "https://bigquery.googleapis.com/";
+const GOOGLE_SEARCH_CONSOLE_AUTH_URL: &str = "https://searchconsole.googleapis.com/";
+const SITE_VERIFICATION_AUTH_URL: &str = "https://siteverification.googleapis.com/";
 
 fn encode_base64<T: AsRef<[u8]>>(decoded: T) -> String {
     use base64::{engine::general_purpose, Engine as _};
@@ -91,10 +93,11 @@ impl ServiceAccountKey {
         jwt(&self.private_key_id, &self.client_email, audience)
     }
 
-    pub fn access_token(&self) -> BQAuthResult<String> {
+    pub fn access_token(&self, scopes: Option<String>) -> BQAuthResult<String> {
+        let audience = scopes.map(|s| s).unwrap_or(BIG_QUERY_AUTH_URL.to_string());
         //let pk = self.private_key().expect("failed to load private key");
         let signer = Signer::new(&self.private_key)?;
-        let (header, claims) = self.jwt(BIG_QUERY_AUTH_URL);
+        let (header, claims) = self.jwt(audience.as_str());
         let jwt = format!("{}.{}", encode_base64(header), encode_base64(claims));
         let signature = encode_base64(signer.sign(jwt.as_bytes())?);
         let jwt = format!("{}.{}", jwt, signature);
@@ -179,7 +182,7 @@ mod test {
     #[test]
     fn jwt_signs_without_error() {
         let sa = service_account_test();
-        let token = sa.access_token().unwrap();
+        let token = sa.access_token(None).unwrap();
         assert!(!token.is_empty());
     }
 }
