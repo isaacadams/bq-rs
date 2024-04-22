@@ -18,8 +18,8 @@ pub enum BQAuthError {
 
 /// this is the audience (aud) in the JWT
 const BIG_QUERY_AUTH_URL: &str = "https://bigquery.googleapis.com/";
-const GOOGLE_SEARCH_CONSOLE_AUTH_URL: &str = "https://searchconsole.googleapis.com/";
-const SITE_VERIFICATION_AUTH_URL: &str = "https://siteverification.googleapis.com/";
+//const GOOGLE_SEARCH_CONSOLE_AUTH_URL: &str = "https://searchconsole.googleapis.com/";
+//const SITE_VERIFICATION_AUTH_URL: &str = "https://siteverification.googleapis.com/";
 
 fn encode_base64<T: AsRef<[u8]>>(decoded: T) -> String {
     use base64::{engine::general_purpose, Engine as _};
