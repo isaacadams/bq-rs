@@ -17,10 +17,6 @@ impl Client {
         }
     }
 
-    pub fn token(&self) -> &str {
-        &self.token
-    }
-
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
     pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
         let endpoint =
