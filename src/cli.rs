@@ -26,9 +26,16 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Query { query: String },
-    DatasetList { id: String },
-    Token,
+    Query {
+        query: String,
+    },
+    DatasetList {
+        id: String,
+    },
+    Token {
+        #[arg(short, long)]
+        audience: Option<String>,
+    },
 }
 
 impl Cli {
@@ -36,10 +43,10 @@ impl Cli {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
         let sa = gauthenticator::load(key.as_ref())?;
-        let token = sa.access_token()?;
+        let token = sa.access_token(None)?;
 
         let project_id = project_id
-            .or(sa.project_id)
+            .or(sa.project_id.clone())
             .expect("project id is required");
 
         let client = api::Client::bq_client(token, &project_id);
@@ -50,8 +57,9 @@ impl Cli {
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.as_csv());
             }
-            Commands::Token => {
-                println!("{}", client.token());
+            Commands::Token { audience } => {
+                let token = sa.access_token(audience)?;
+                println!("{}", token);
             }
             Commands::DatasetList { id } => {
                 println!("{}", client.tables_list(&id).into_string()?);
