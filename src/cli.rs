@@ -26,9 +26,16 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Query { query: String },
-    DatasetList { id: String },
-    Token { scopes: String },
+    Query {
+        query: String,
+    },
+    DatasetList {
+        id: String,
+    },
+    Token {
+        #[arg(short, long)]
+        audience: Option<String>,
+    },
 }
 
 impl Cli {
@@ -50,8 +57,8 @@ impl Cli {
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.as_csv());
             }
-            Commands::Token { scopes } => {
-                let token = sa.access_token(Some(scopes))?;
+            Commands::Token { audience } => {
+                let token = sa.access_token(audience)?;
                 println!("{}", token);
             }
             Commands::DatasetList { id } => {

@@ -93,8 +93,8 @@ impl ServiceAccountKey {
         jwt(&self.private_key_id, &self.client_email, audience)
     }
 
-    pub fn access_token(&self, scopes: Option<String>) -> BQAuthResult<String> {
-        let audience = scopes.map(|s| s).unwrap_or(BIG_QUERY_AUTH_URL.to_string());
+    pub fn access_token(&self, audience: Option<String>) -> BQAuthResult<String> {
+        let audience = audience.unwrap_or(BIG_QUERY_AUTH_URL.to_string());
         //let pk = self.private_key().expect("failed to load private key");
         let signer = Signer::new(&self.private_key)?;
         let (header, claims) = self.jwt(audience.as_str());
