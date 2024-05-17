@@ -73,12 +73,14 @@ impl ServiceAccountKey {
     }
 
     pub fn load<P: AsRef<Path>>(path: Option<P>) -> String {
+        // if supplied, prefers trying the given path
         if let Some(path) = path {
             if let Ok(creds) = std::fs::read_to_string(path) {
                 return creds;
             }
         }
 
+        // otherwise, try ENV variable or a typical local filename
         match dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
             .or(std::fs::read_to_string("./key.json"))
         {

@@ -45,6 +45,7 @@ impl Cli {
         let sa = gauthenticator::load(key.as_ref())?;
         let token = sa.access_token(None)?;
 
+        // load project id from user input or from the service account file
         let project_id = project_id
             .or(sa.project_id.clone())
             .expect("project id is required");

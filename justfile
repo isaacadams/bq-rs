@@ -5,6 +5,7 @@ publish:
     cargo publish -p gauthenticator
     cargo publish
 
+# release workflow will kick off, generate cross platform binaries, and put everything into a github release
 release:
     bash scripts/release.sh
 
