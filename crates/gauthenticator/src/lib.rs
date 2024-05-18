@@ -72,23 +72,13 @@ impl ServiceAccountKey {
         serde_json::from_str(json)
     }
 
-    pub fn load<P: AsRef<Path>>(path: Option<P>) -> String {
-        // if supplied, prefers trying the given path
-        if let Some(path) = path {
-            if let Ok(creds) = std::fs::read_to_string(path) {
-                return creds;
-            }
-        }
+    pub fn from_env() -> Result<String, dotenvy::Error> {
+        dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
+        //panic!("service account could not be found in GOOGLE_APPLICATION_CREDENTIALS environment variable or in local storage: {}", e);
+    }
 
-        // otherwise, try ENV variable or a typical local filename
-        match dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
-            .or(std::fs::read_to_string("./key.json"))
-        {
-            Ok(sa) => sa,
-            Err(e) => {
-                panic!("service account could not be found in GOOGLE_APPLICATION_CREDENTIALS environment variable or in local storage: {}", e);
-            }
-        }
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
+        std::fs::read_to_string(path)
     }
 
     pub fn jwt(&self, audience: &str) -> (String, String) {
