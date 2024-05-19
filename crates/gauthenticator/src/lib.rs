@@ -1,10 +1,25 @@
 use std::path::Path;
 
+const ENV_VARIABLE_NAME: &'static str = "GOOGLE_APPLICATION_CREDENTIALS";
+
 pub type BQAuthResult<T> = Result<T, BQAuthError>;
 
-pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, serde_json::Error> {
-    let creds = ServiceAccountKey::load(path);
-    ServiceAccountKey::deserialize(&creds)
+#[deprecated = "please explicitly use `ServiceAccountKey::from_file(path)` or ServiceAccountKey::from_env()"]
+pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, ServiceAccountError> {
+    if let Some(path) = path {
+        ServiceAccountKey::from_file(path)
+    } else {
+        ServiceAccountKey::from_env()
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ServiceAccountError {
+    #[error("invalid service account file:\t{0}")]
+    InvalidServiceAccount(String),
+
+    #[error("cannot load service account from {0}")]
+    FailedToLoad(String),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -68,17 +83,26 @@ fn jwt(private_key_id: &str, client_email: &str, audience: &str) -> (String, Str
 }
 
 impl ServiceAccountKey {
-    pub fn deserialize(json: &str) -> Result<Self, serde_json::Error> {
+    pub fn deserialize(json: &str) -> Result<Self, ServiceAccountError> {
         serde_json::from_str(json)
+            .map_err(|e| ServiceAccountError::InvalidServiceAccount(e.to_string()))
     }
 
-    pub fn from_env() -> Result<String, dotenvy::Error> {
-        dotenvy::var("GOOGLE_APPLICATION_CREDENTIALS")
-        //panic!("service account could not be found in GOOGLE_APPLICATION_CREDENTIALS environment variable or in local storage: {}", e);
+    pub fn from_env() -> Result<Self, ServiceAccountError> {
+        log::debug!("searching for service account in {}", ENV_VARIABLE_NAME);
+        let file = dotenvy::var(ENV_VARIABLE_NAME).map_err(|e| {
+            ServiceAccountError::FailedToLoad(format!("{}\t{}", ENV_VARIABLE_NAME, e))
+        })?;
+        let sa = Self::deserialize(&file)?;
+        Ok(sa)
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
-        std::fs::read_to_string(path)
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ServiceAccountError> {
+        let path = path.as_ref();
+        let file = std::fs::read_to_string(path)
+            .map_err(|e| ServiceAccountError::FailedToLoad(format!("{}\t{}", path.display(), e)))?;
+        let sa = Self::deserialize(&file)?;
+        Ok(sa)
     }
 
     pub fn jwt(&self, audience: &str) -> (String, String) {
