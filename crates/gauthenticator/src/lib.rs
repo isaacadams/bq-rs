@@ -15,7 +15,7 @@ pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, Servic
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceAccountError {
-    #[error("invalid service account file:\t{0}")]
+    #[error("invalid service account file because {0}")]
     InvalidServiceAccount(String),
 
     #[error("cannot load service account from {0}")]
@@ -91,7 +91,7 @@ impl ServiceAccountKey {
     pub fn from_env() -> Result<Self, ServiceAccountError> {
         log::debug!("searching for service account in {}", ENV_VARIABLE_NAME);
         let file = dotenvy::var(ENV_VARIABLE_NAME).map_err(|e| {
-            ServiceAccountError::FailedToLoad(format!("{}\t{}", ENV_VARIABLE_NAME, e))
+            ServiceAccountError::FailedToLoad(format!("{} because {}", ENV_VARIABLE_NAME, e))
         })?;
         let sa = Self::deserialize(&file)?;
         Ok(sa)
@@ -99,8 +99,9 @@ impl ServiceAccountKey {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ServiceAccountError> {
         let path = path.as_ref();
-        let file = std::fs::read_to_string(path)
-            .map_err(|e| ServiceAccountError::FailedToLoad(format!("{}\t{}", path.display(), e)))?;
+        let file = std::fs::read_to_string(path).map_err(|e| {
+            ServiceAccountError::FailedToLoad(format!("{} because {}", path.display(), e))
+        })?;
         let sa = Self::deserialize(&file)?;
         Ok(sa)
     }

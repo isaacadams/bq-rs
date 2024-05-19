@@ -4,7 +4,11 @@ mod query;
 mod query_response;
 mod response_factory;
 
-fn main() {
+use clap::Parser;
+use cli::Cli;
+
+fn main() -> anyhow::Result<()> {
     env_logger::init();
-    cli::run();
+    let cli = Cli::parse();
+    cli.run()
 }
