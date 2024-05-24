@@ -67,6 +67,24 @@ pub struct QueryResponse {
     pub num_dml_affected_rows: Option<String>,
 }
 
+pub fn retry<T>(handler: impl Fn() -> Option<T>, retries: Option<u32>) -> T {
+    let retries = retries.unwrap_or(0);
+
+    if retries > 10 {
+        panic!("exceeded retry limit");
+    }
+
+    let base_delay = time::Duration::from_millis(400);
+    let delay = base_delay * 2_u32.pow(retries);
+    std::thread::sleep(delay);
+
+    if let Some(result) = handler() {
+        return result;
+    }
+
+    retry(handler, Some(retries + 1))
+}
+
 impl QueryResponse {
     pub fn retry(self, client: &crate::api::Client) -> Self {
         if self.job_complete {
@@ -77,32 +95,17 @@ impl QueryResponse {
             panic!("no id found for incomplete job");
         };
 
-        Self::_retry(client, job_id, &self.job_reference.location, None)
-    }
+        let handler = || {
+            let response = client.jobs_query_results(job_id, &self.job_reference.location);
 
-    fn _retry(
-        client: &crate::api::Client,
-        job_id: &str,
-        job_location: &str,
-        retries: Option<u32>,
-    ) -> Self {
-        let retries = retries.unwrap_or(0);
+            if response.job_complete {
+                Some(response)
+            } else {
+                None
+            }
+        };
 
-        if retries > 10 {
-            panic!("exceeded retry limit");
-        }
-
-        let base_delay = time::Duration::from_millis(400);
-        let delay = base_delay * 2_u32.pow(retries);
-        std::thread::sleep(delay);
-
-        let response = client.jobs_query_results(job_id, job_location);
-
-        if response.job_complete {
-            return response;
-        }
-
-        Self::_retry(client, job_id, job_location, Some(retries + 1))
+        retry(handler, None)
     }
 
     pub fn as_csv(self) -> String {
