@@ -1,9 +1,14 @@
-use crate::{query::QueryRequest, query_response::QueryResponse, response_factory::ResponseThunk};
+use crate::query::{request::QueryRequest, response::QueryResponse};
 use ureq::Request;
 
 pub struct Client {
     host: String,
     token: String,
+}
+
+pub enum ContentType {
+    Json(serde_json::Value),
+    None,
 }
 
 impl Client {
@@ -17,43 +22,45 @@ impl Client {
         }
     }
 
+    pub fn endpoint(&self, request: Request, body: ContentType) -> ureq::Response {
+        let request = request.set("AUTHORIZATION", &format!("Bearer {}", &self.token));
+
+        let response = match body {
+            ContentType::Json(data) => request.send_json(data),
+            ContentType::None => request.call(),
+        };
+
+        Self::handle_error(response)
+    }
+
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
     pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
-        let endpoint =
-            ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location);
-        let endpoint = self.defaults(endpoint);
-        let result = endpoint.call();
-        let response = Self::handle_error(result);
-        ResponseThunk::<QueryResponse>::new(response)
-            .deserialize()
-            .unwrap()
+        let response = self.endpoint(
+            ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location),
+            ContentType::None,
+        );
+
+        response.into_json().unwrap()
     }
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
     pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
-        let endpoint = ureq::post(&format!("{}/queries", &self.host));
-        let endpoint = self.defaults(endpoint);
-        let result = endpoint.send_string(&request.serialize().unwrap());
-        let response = Self::handle_error(result);
-        let response = ResponseThunk::<QueryResponse>::new(response)
-            .deserialize()
-            .unwrap();
+        let response = self.endpoint(
+            ureq::post(&format!("{}/queries", &self.host)),
+            ContentType::Json(serde_json::to_value(request).unwrap()),
+        );
+
+        let response: QueryResponse = response.into_json().unwrap();
 
         response.retry(&self)
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {
-        let endpoint = ureq::get(&format!("{}/datasets/{}/tables", &self.host, dataset_id));
-        let endpoint = self.defaults(endpoint);
-
-        let result = endpoint.call();
-
-        Self::handle_error(result)
-    }
-
-    fn defaults(&self, req: Request) -> Request {
-        req.set("AUTHORIZATION", &format!("Bearer {}", &self.token))
+        self.endpoint(
+            ureq::get(&format!("{}/datasets/{}/tables", &self.host, dataset_id)),
+            ContentType::None,
+        )
     }
 
     fn handle_error(result: Result<ureq::Response, ureq::Error>) -> ureq::Response {
