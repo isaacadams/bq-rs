@@ -57,7 +57,7 @@ impl Cli {
             Commands::Query { query } => {
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
-                println!("{}", query_response.as_csv());
+                println!("{}", query_response.into_csv());
             }
             Commands::Token { audience } => {
                 let token = sa.access_token(audience)?;

@@ -14,4 +14,7 @@ delete_version tag:
     git tag --delete {{tag}}
 
 clippy:
+    cargo clippy --verbose --all-features --workspace
+
+clippy-fix:
     cargo clippy --verbose --all-features --workspace --fix --allow-dirty

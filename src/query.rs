@@ -261,7 +261,7 @@ pub mod response {
             retry(handler, None)
         }
 
-        pub fn as_csv(self) -> String {
+        pub fn into_csv(self) -> String {
             let mut rows: Vec<String> = Vec::new();
 
             if let Some(schema) = self.schema {
@@ -298,7 +298,7 @@ pub mod response {
         }
 
         #[allow(dead_code)]
-        pub fn as_json(self) -> serde_json::Value {
+        pub fn into_json(self) -> serde_json::Value {
             let mut rows: Vec<serde_json::Value> = Vec::new();
 
             if let Some(schema) = self.schema {
@@ -361,6 +361,7 @@ pub mod response {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
+    #[allow(clippy::enum_variant_names)]
     pub enum RoundingMode {
         RoundingModeUnspecified,
         RoundHalfAwayFromZero,
