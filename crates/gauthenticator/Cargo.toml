@@ -1,6 +1,6 @@
 [package]
 name = "gauthenticator"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2021"
 authors = ["Isaac Adams <crates.io.engine538@passinbox.com>"]
 license = "MIT OR Apache-2.0"
