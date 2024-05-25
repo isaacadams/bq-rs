@@ -1,6 +1,6 @@
 # `bq-rs`
 
-a command line utility for interacting with the bigquery api
+a command line utility for interacting with bigquery
 
 ## Commands
 
