@@ -33,17 +33,21 @@ enum Commands {
     },
 }
 
+pub fn load_service_account_key(
+    path_to_key: Option<PathBuf>,
+) -> gauthenticator::ServiceAccountResult {
+    if let Some(path) = path_to_key {
+        return gauthenticator::ServiceAccountKey::from_file(path);
+    };
+
+    gauthenticator::auto_load_service_account_key()
+}
+
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = if let Some(path_to_key) = key {
-            gauthenticator::ServiceAccountKey::from_file(path_to_key)
-        } else {
-            gauthenticator::ServiceAccountKey::from_env()
-        }
-        .with_context(|| "failed to load service account")?;
-
+        let sa = load_service_account_key(key).with_context(|| "failed to load service account")?;
         let token = sa.access_token(None)?;
 
         // load project id from user input or from the service account file

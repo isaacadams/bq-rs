@@ -1,15 +1,19 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const ENV_VARIABLE_NAME: &str = "GOOGLE_APPLICATION_CREDENTIALS";
 
 pub type BQAuthResult<T> = Result<T, BQAuthError>;
+
+pub fn auto_load_service_account_key() -> ServiceAccountResult {
+    ServiceAccountKey::from_well_known_file().or(ServiceAccountKey::from_well_known_env())
+}
 
 #[deprecated = "please explicitly use `ServiceAccountKey::from_file(path)` or ServiceAccountKey::from_env()"]
 pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<ServiceAccountKey, ServiceAccountError> {
     if let Some(path) = path {
         ServiceAccountKey::from_file(path)
     } else {
-        ServiceAccountKey::from_env()
+        ServiceAccountKey::from_well_known_env()
     }
 }
 
@@ -82,28 +86,74 @@ fn jwt(private_key_id: &str, client_email: &str, audience: &str) -> (String, Str
     )
 }
 
+pub type ServiceAccountResult = Result<ServiceAccountKey, ServiceAccountError>;
+
 impl ServiceAccountKey {
     pub fn deserialize(json: &str) -> Result<Self, ServiceAccountError> {
         serde_json::from_str(json)
             .map_err(|e| ServiceAccountError::InvalidServiceAccount(e.to_string()))
     }
 
-    pub fn from_env() -> Result<Self, ServiceAccountError> {
-        log::debug!("searching for service account in {}", ENV_VARIABLE_NAME);
-        let file = dotenvy::var(ENV_VARIABLE_NAME).map_err(|e| {
-            ServiceAccountError::FailedToLoad(format!("{} because {}", ENV_VARIABLE_NAME, e))
+    pub fn from_env<S: AsRef<str>>(env: S) -> ServiceAccountResult {
+        let contents = dotenvy::var(env.as_ref()).map_err(|e| {
+            ServiceAccountError::FailedToLoad(format!("{} because {}", env.as_ref(), e))
         })?;
-        let sa = Self::deserialize(&file)?;
-        Ok(sa)
+        log::debug!(
+            "loading service account key contents from ${}",
+            env.as_ref()
+        );
+        ServiceAccountKey::deserialize(&contents)
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ServiceAccountError> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> ServiceAccountResult {
         let path = path.as_ref();
-        let file = std::fs::read_to_string(path).map_err(|e| {
+        let contents = std::fs::read_to_string(path).map_err(|e| {
             ServiceAccountError::FailedToLoad(format!("{} because {}", path.display(), e))
         })?;
-        let sa = Self::deserialize(&file)?;
-        Ok(sa)
+        log::debug!(
+            "loading service account key contents from {}",
+            path.display()
+        );
+        ServiceAccountKey::deserialize(&contents)
+    }
+
+    pub fn from_well_known_env() -> ServiceAccountResult {
+        Self::from_env(ENV_VARIABLE_NAME)
+    }
+
+    pub fn from_well_known_file() -> ServiceAccountResult {
+        let path = Self::build_well_known_file_path()?;
+        Self::from_file(path)
+    }
+
+    fn build_well_known_file_path() -> Result<PathBuf, ServiceAccountError> {
+        let mut path = Self::get_user_config_directory()?;
+        path.push("gcloud");
+        path.push("application_default_credentials.json");
+        Ok(path)
+    }
+
+    fn get_user_config_directory() -> Result<PathBuf, ServiceAccountError> {
+        let mut path = PathBuf::new();
+        if cfg!(windows) {
+            let app_data = std::env::var("APPDATA").map_err(|e| {
+                ServiceAccountError::FailedToLoad(format!(
+                    "environment variable $APPDATA because {}",
+                    e
+                ))
+            })?;
+            path.push(app_data);
+        } else {
+            let home = std::env::var("HOME").map_err(|e| {
+                ServiceAccountError::FailedToLoad(format!(
+                    "environment variable $HOME because {}",
+                    e
+                ))
+            })?;
+            path.push(home);
+            path.push(".config");
+        }
+        Ok(path)
     }
 
     pub fn jwt(&self, audience: &str) -> (String, String) {
@@ -112,6 +162,8 @@ impl ServiceAccountKey {
 
     pub fn access_token(&self, audience: Option<String>) -> BQAuthResult<String> {
         let audience = audience.unwrap_or(BIG_QUERY_AUTH_URL.to_string());
+
+        log::debug!("generating token for {audience}");
 
         //let pk = self.private_key().expect("failed to load private key");
         let signer = Signer::new(&self.private_key)?;
