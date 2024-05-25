@@ -16,35 +16,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+
+      - name: install cargo
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-      - uses: Swatinem/rust-cache@v1
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --all-features --workspace
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo test --verbose --all-features --workspace
 
   tidy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+
+      - name: install cargo
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: nightly # Using nightly for (a) unstable features of rustfmt and (b) faster clippy redundant_clone lint
+          toolchain: nightly
           components: rustfmt, clippy
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - name: Run fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all --check
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --verbose --all-features --workspace
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --verbose --all-features --workspace
+
+  binaries:
+    uses: isaacadams/hat/.github/workflows/rust-binaries.yml@main
+    with:
+      name: bq-rs
+      version: test
+      dry-run: true

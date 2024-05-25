@@ -132,7 +132,7 @@ impl Signer {
         use std::io;
 
         let key = Self::decode_rsa_key(private_key)?;
-        let signing_key = rustls::crypto::aws_lc_rs::sign::any_supported_type(&key.into())
+        let signing_key = rustls::crypto::ring::sign::any_supported_type(&key.into())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
 
         let signer = signing_key
