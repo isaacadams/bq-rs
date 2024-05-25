@@ -53,5 +53,5 @@ jobs:
     uses: isaacadams/hat/.github/workflows/rust-binaries.yml@rust-binaries-update
     with:
       name: bq-rs
-      version: ${{ github.ref_name }}
+      version: test
       dry-run: true
