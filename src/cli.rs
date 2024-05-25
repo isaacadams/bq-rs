@@ -1,12 +1,7 @@
-use crate::{api, query::QueryRequestBuilder};
+use crate::{api, query::request::QueryRequestBuilder};
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-
-pub fn run() {
-    if let Err(e) = Cli::parse().run() {
-        eprintln!("{}", e);
-    }
-}
 
 #[derive(Debug, Parser)]
 #[command(name = "bq-rs")]
@@ -42,9 +37,16 @@ impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = gauthenticator::load(key.as_ref())?;
+        let sa = if let Some(path_to_key) = key {
+            gauthenticator::ServiceAccountKey::from_file(path_to_key)
+        } else {
+            gauthenticator::ServiceAccountKey::from_env()
+        }
+        .with_context(|| "failed to load service account")?;
+
         let token = sa.access_token(None)?;
 
+        // load project id from user input or from the service account file
         let project_id = project_id
             .or(sa.project_id.clone())
             .expect("project id is required");
@@ -55,7 +57,7 @@ impl Cli {
             Commands::Query { query } => {
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
-                println!("{}", query_response.as_csv());
+                println!("{}", query_response.into_csv());
             }
             Commands::Token { audience } => {
                 let token = sa.access_token(audience)?;
