@@ -48,3 +48,17 @@ jobs:
         with:
           command: clippy
           args: --verbose --all-features --workspace
+
+  try-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly # Using nightly for (a) unstable features of rustfmt and (b) faster clippy redundant_clone lint
+          components: rustfmt, clippy
+          override: true
+      - run: >-
+          cargo publish -p gauthenticator --dry-run
+          cargo publish --dry-run

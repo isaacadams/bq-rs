@@ -2,7 +2,7 @@
 name = "bq-rs"
 version = "0.1.7"
 edition = "2021"
-authors = ["Isaac Adams <isaac.d.adams@gmail.com>"]
+authors = ["Isaac Adams <crates.io.engine538@passinbox.com>"]
 license = "MIT OR Apache-2.0"
 description = """
 A CLI for querying BigQuery tables
