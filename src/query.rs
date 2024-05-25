@@ -79,12 +79,6 @@ pub mod request {
     }
 
     impl QueryRequest {
-        pub fn serialize(&self) -> Result<String, serde_json::Error> {
-            serde_json::to_string(&self)
-        }
-    }
-
-    impl QueryRequest {
         pub fn new(query: String) -> Self {
             Self {
                 kind: None,
