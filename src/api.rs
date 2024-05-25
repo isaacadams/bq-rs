@@ -53,7 +53,7 @@ impl Client {
 
         let response: QueryResponse = response.into_json().unwrap();
 
-        response.retry(&self)
+        response.retry(self)
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {
@@ -65,7 +65,7 @@ impl Client {
 
     fn handle_error(result: Result<ureq::Response, ureq::Error>) -> ureq::Response {
         match result {
-            Ok(r) => return r,
+            Ok(r) => r,
             Err(e) => {
                 let header = e.to_string();
                 let Some(response) = e.into_response() else {

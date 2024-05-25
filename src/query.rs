@@ -41,9 +41,9 @@ pub mod request {
         }
     }
 
-    impl Into<QueryRequest> for QueryRequestBuilder {
-        fn into(self) -> QueryRequest {
-            self.build()
+    impl From<QueryRequestBuilder> for QueryRequest {
+        fn from(val: QueryRequestBuilder) -> Self {
+            val.build()
         }
     }
 

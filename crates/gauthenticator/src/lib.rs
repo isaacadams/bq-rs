@@ -1,6 +1,6 @@
 use std::path::Path;
 
-const ENV_VARIABLE_NAME: &'static str = "GOOGLE_APPLICATION_CREDENTIALS";
+const ENV_VARIABLE_NAME: &str = "GOOGLE_APPLICATION_CREDENTIALS";
 
 pub type BQAuthResult<T> = Result<T, BQAuthError>;
 
