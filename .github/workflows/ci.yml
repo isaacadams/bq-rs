@@ -43,7 +43,7 @@ jobs:
       - run: cargo clippy --verbose --all-features --workspace
 
   binaries:
-    uses: isaacadams/hat/.github/workflows/rust-binaries.yml@rust-binaries-update
+    uses: isaacadams/hat/.github/workflows/rust-binaries.yml@main
     with:
       name: bq-rs
       version: test
