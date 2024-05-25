@@ -20,7 +20,7 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
@@ -37,7 +37,7 @@ jobs:
           toolchain: nightly # Using nightly for (a) unstable features of rustfmt and (b) faster clippy redundant_clone lint
           components: rustfmt, clippy
           override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Run fmt
         uses: actions-rs/cargo@v1
         with:
@@ -53,5 +53,5 @@ jobs:
     uses: isaacadams/hat/.github/workflows/rust-binaries.yml@rust-binaries-update
     with:
       name: bq-rs
-      version: test
+      version: test1
       dry-run: true
