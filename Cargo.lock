@@ -106,7 +106,7 @@ checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
 
 [[package]]
 name = "bq-rs"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "clap",
@@ -262,7 +262,7 @@ dependencies = [
 
 [[package]]
 name = "gauthenticator"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "base64 0.21.7",
  "chrono",
