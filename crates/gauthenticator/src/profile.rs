@@ -92,7 +92,7 @@ pub fn parse(profiles: &mut Profiles, contents: &[u8]) {
         let mut table = toml::Table::new();
 
         // add properties to the profile
-        while let Some(property) = lines.next() {
+        for property in lines.by_ref() {
             // if there is an error, skip to the next property
             let Ok(property) = property else {
                 continue;
@@ -131,7 +131,7 @@ mod test {
         let directory = GoogleCloudUserDirectory::new().unwrap();
         let profiles = Profiles::new(&directory);
         assert!(profiles.is_ok());
-        ()
+        
     }
 
     #[test]
@@ -145,6 +145,6 @@ mod test {
         let credentials = crate::credentials_from_file(credentials);
         assert!(credentials.credentials().is_ok());
 
-        ()
+        
     }
 }

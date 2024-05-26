@@ -1,5 +1,4 @@
 use crate::{api, query::request::QueryRequestBuilder};
-use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
