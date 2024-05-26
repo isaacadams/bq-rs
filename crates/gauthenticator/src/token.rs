@@ -63,7 +63,7 @@ impl AuthorizedUserFile {
         result: Result<ureq::Response, ureq::Error>,
     ) -> Result<ureq::Response, TokenError> {
         result.map_err(|e| {
-            let error_header = format!("[{}] {}", e.kind(), e.to_string());
+            let error_header = format!("[{}] {}", e.kind(), e);
             let error = match &e.kind() {
                 ureq::ErrorKind::HTTP => {
                     if let Some(response) = e.into_response() {
