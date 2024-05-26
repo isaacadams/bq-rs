@@ -19,7 +19,7 @@ pub struct Cli {
     command: Commands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, PartialEq)]
 enum Commands {
     Query {
         query: String,
@@ -31,13 +31,14 @@ enum Commands {
         #[arg(short, long)]
         audience: Option<String>,
     },
+    Auth,
 }
 
 pub fn load_service_account_key(
     path_to_key: Option<PathBuf>,
-) -> gauthenticator::ServiceAccountResult {
+) -> gauthenticator::CredentialFileResult {
     if let Some(path) = path_to_key {
-        return gauthenticator::ServiceAccountKey::from_file(path);
+        return gauthenticator::CredentialsFile::from_file(path);
     };
 
     gauthenticator::auto_load_service_account_key()
@@ -47,24 +48,42 @@ impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = load_service_account_key(key).with_context(|| "failed to load service account")?;
-        let token = sa.access_token(None)?;
+        let credentials = load_service_account_key(key);
+
+        if command == Commands::Auth {
+            match credentials {
+                Ok(credentials) => {
+                    println!(
+                        "successfully loaded credentials for `{}`",
+                        credentials.email().unwrap_or("na")
+                    );
+                }
+                Err(e) => {
+                    println!("failed to load credentials: {}", e);
+                }
+            }
+            return Ok(());
+        }
+
+        let credentials = credentials.with_context(|| "failed to load service account")?;
+        let token = credentials.token(None)?;
 
         // load project id from user input or from the service account file
         let project_id = project_id
-            .or(sa.project_id.clone())
+            .or(credentials.project_id().map(|s| s.to_string()))
             .expect("project id is required");
 
         let client = api::Client::bq_client(token, &project_id);
 
         match command {
+            Commands::Auth => {}
             Commands::Query { query } => {
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.into_csv());
             }
             Commands::Token { audience } => {
-                let token = sa.access_token(audience)?;
+                let token = credentials.token(audience)?;
                 println!("{}", token);
             }
             Commands::DatasetList { id } => {
