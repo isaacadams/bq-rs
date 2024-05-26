@@ -7,8 +7,8 @@ mod token;
 pub use credentials::*;
 pub use token::*;
 
-use profile::{GoogleCloudConfigurationContext, ProfileSchema, ProfileWithCredentials};
-use std::path::{Path, PathBuf};
+use profile::{GoogleCloudConfigurationContext, ProfileSchema};
+use std::path::Path;
 
 pub struct Authentication {
     loading_from: String,
@@ -143,18 +143,3 @@ pub fn credentials_from_file<P: AsRef<Path>>(path: P) -> Authentication {
         loading_from: format!("{}", path.display()),
     }
 }
-
-/* pub struct FluentBuilder {
-    context: Option<GoogleCloudConfigurationContext>,
-}
-
-impl FluentBuilder {
-    pub fn load_profile(&self) -> Result<ProfileWithCredentials, Error> {
-        let Some(context) = &self.context else {
-            panic!();
-        };
-        let profile = ProfileSchema::new(&context.directory)?;
-        profile.to_credentials()
-    }
-}
- */

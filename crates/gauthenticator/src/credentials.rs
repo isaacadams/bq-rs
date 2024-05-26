@@ -1,35 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::profile::{GoogleCloudConfigurationContext, ProfileSchema, ProfileWithCredentials};
-
-pub enum Credentials {
-    Normal(CredentialsSchema),
-    Profile(ProfileWithCredentials),
-}
-
-impl Credentials {
-    pub fn email(&self) -> Option<&str> {
-        match self {
-            Credentials::Normal(c) => c.email(),
-            Credentials::Profile(p) => Some(p.config.account.as_str()),
-        }
-    }
-
-    pub fn kind(&self) -> &str {
-        match self {
-            Credentials::Normal(c) => c.kind(),
-            Credentials::Profile(p) => p.credentials.kind(),
-        }
-    }
-
-    pub fn token(&self, audience: Option<String>) -> Result<String, crate::TokenError> {
-        match self {
-            Credentials::Normal(c) => c.token(audience),
-            Credentials::Profile(p) => p.credentials.token(audience),
-        }
-    }
-}
+use crate::profile::ProfileSchema;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -53,50 +25,6 @@ pub enum CredentialsSchema {
     AuthorizedUser(AuthorizedUserFile),
     #[serde(rename = "service_account")]
     ServiceAccount(ServiceAccountFile),
-}
-
-pub type CredentialsResult = Result<Credentials, Error>;
-
-pub enum Source {
-    /// load from environment variable
-    EnvironmentVariable(String),
-    /// load from file path
-    File(PathBuf),
-    /// load from local google cloud profile
-    Profile(String),
-}
-
-impl Source {
-    pub fn identifier(&self) -> String {
-        match self {
-            Source::EnvironmentVariable(name) => format!("env:{}", name),
-            Source::File(path) => path.display().to_string(),
-            Source::Profile(name) => format!(
-                "profile `{}` from `<user_config>/gcloud/configurations/config_default`",
-                name
-            ),
-        }
-    }
-
-    /* pub fn load(&self) -> CredentialsResult {
-        match self {
-            Self::EnvironmentVariable(variable) => {
-                crate::credentials_from_environment_variable(variable)
-                    .credentials()
-                    .map(Credentials::Normal)
-            }
-            Self::File(path) => crate::credentials_from_file(path)
-                .credentials()
-                .map(Credentials::Normal),
-            Self::Profile(_) => Self::load_profile().map(Credentials::Profile),
-        }
-    } */
-
-    /*   pub fn load_profile() -> Result<ProfileWithCredentials, Error> {
-        let context = GoogleCloudConfigurationContext::new()?;
-        let profile = context.core_profile?;
-        profile.to_credentials()
-    } */
 }
 
 impl CredentialsSchema {
