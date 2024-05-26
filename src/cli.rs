@@ -61,10 +61,11 @@ impl Cli {
 
         // load project id from user input or from the service account file
         let project_id = project_id
-            .or(credentials.project_id().map(|s| s.to_string()))
+            .as_deref()
+            .or(credentials.project_id())
             .expect("project id is required");
 
-        let client = api::Client::bq_client(token, &project_id);
+        let client = api::Client::bq_client(token, project_id);
 
         match command {
             Commands::Info => {}
