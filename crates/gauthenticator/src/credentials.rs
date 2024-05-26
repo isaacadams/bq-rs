@@ -153,7 +153,7 @@ mod test {
         );
         assert_eq!(authorized_user.client_secret, "d-12345");
         assert_eq!(authorized_user.refresh_token, "1//12345");
-        ()
+        
     }
 
     #[test]
@@ -183,6 +183,6 @@ mod test {
             service_account.client_email,
             "sa@test.iam.gserviceaccount.com"
         );
-        ()
+        
     }
 }

@@ -13,14 +13,14 @@ pub type TokenResult<T> = Result<T, TokenError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum TokenError {
-    #[error("std::io {0:?}")]
+    #[error("std::io\t{0:?}")]
     IO(#[from] std::io::Error),
 
-    #[error("rustls {0:?}")]
+    #[error("rustls\t{0:?}")]
     Rustls(#[from] rustls::Error),
 
-    #[error("http {0:?}")]
-    Http(#[from] ureq::Error),
+    #[error("http\t{0:?}")]
+    Http(String),
 }
 
 impl CredentialsFile {
@@ -34,6 +34,7 @@ impl CredentialsFile {
 
 /// The response of a Service Account Key token exchange.
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct TokenResponse {
     access_token: String,
     token_type: String,
@@ -51,10 +52,42 @@ impl AuthorizedUserFile {
                 ("refresh_token", &self.refresh_token),
                 ("client_id", &self.client_id),
                 ("client_secret", &self.client_secret),
-            ])?;
+            ]);
 
-        let token_response: TokenResponse = result.into_json()?;
-        Ok(token_response.access_token)
+        let response = Self::handle_error(result)?;
+        let data: TokenResponse = response.into_json()?;
+        Ok(data.access_token)
+    }
+
+    fn handle_error(
+        result: Result<ureq::Response, ureq::Error>,
+    ) -> Result<ureq::Response, TokenError> {
+        result.map_err(|e| {
+            let error_header = format!("[{}] {}", e.kind(), e.to_string());
+            let error = match &e.kind() {
+                ureq::ErrorKind::HTTP => {
+                    if let Some(response) = e.into_response() {
+                        let http_header = format!(
+                            "{} {} {}",
+                            response.status(),
+                            response.status_text(),
+                            response.get_url()
+                        );
+
+                        let Ok(body) = response.into_string() else {
+                            panic!("{}", http_header);
+                        };
+
+                        format!("{} {}", http_header, body)
+                    } else {
+                        error_header
+                    }
+                }
+                _ => error_header,
+            };
+
+            TokenError::Http(error)
+        })
     }
 }
 

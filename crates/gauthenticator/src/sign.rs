@@ -36,6 +36,6 @@ impl Signer {
     }
 
     pub fn sign(&self, digest: &[u8]) -> Result<Vec<u8>, rustls::Error> {
-        Ok(self.signer.sign(digest)?)
+        self.signer.sign(digest)
     }
 }
