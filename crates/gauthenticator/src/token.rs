@@ -44,6 +44,7 @@ struct TokenResponse {
 }
 
 impl AuthorizedUserFile {
+    /// https://developers.google.com/identity/protocols/oauth2/web-server#httprest_2
     pub fn token(&self) -> TokenResult<String> {
         let result = ureq::post("https://oauth2.googleapis.com/token")
             .set("Content-Type", "application/x-www-form-urlencoded")
@@ -53,7 +54,6 @@ impl AuthorizedUserFile {
                 ("client_id", &self.client_id),
                 ("client_secret", &self.client_secret),
             ]);
-
         let response = Self::handle_error(result)?;
         let data: TokenResponse = response.into_json()?;
         Ok(data.access_token)
@@ -97,6 +97,7 @@ fn encode_base64<T: AsRef<[u8]>>(decoded: T) -> String {
 }
 
 impl ServiceAccountFile {
+    /// https://developers.google.com/identity/protocols/oauth2/service-account
     pub fn token(&self, audience: Option<String>) -> TokenResult<String> {
         let audience = audience.unwrap_or(BIG_QUERY_AUTH_URL.to_string());
 
