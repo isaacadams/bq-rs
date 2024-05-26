@@ -31,31 +31,33 @@ enum Commands {
         #[arg(short, long)]
         audience: Option<String>,
     },
-    Auth,
+    /// get information on the current environment
+    Info,
 }
 
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let credentials = gauthenticator::Source::load();
-
-        if command == Commands::Auth {
-            match credentials {
-                Ok(credentials) => {
-                    println!(
-                        "successfully loaded credentials for `{}`",
-                        credentials.email().unwrap_or("na")
-                    );
-                }
-                Err(e) => {
-                    println!("failed to load credentials: {}", e);
-                }
-            }
+        if command == Commands::Info {
+            let credentials = gauthenticator::credentials_from_env();
+            credentials.print();
             return Ok(());
         }
 
-        let credentials = credentials.with_context(|| "failed to load service account")?;
+        // tries loading from key if provided
+        // otherwise will trying loading from environment
+        let credentials = match key {
+            Some(path) => gauthenticator::credentials_from_file(path)
+                .credentials()
+                .ok(),
+            None => gauthenticator::credentials_from_env().load(),
+        };
+
+        let Some(credentials) = credentials else {
+            panic!("failed to find credentials");
+        };
+
         let token = credentials.token(None)?;
 
         // load project id from user input or from the service account file
@@ -66,7 +68,7 @@ impl Cli {
         let client = api::Client::bq_client(token, &project_id);
 
         match command {
-            Commands::Auth => {}
+            Commands::Info => {}
             Commands::Query { query } => {
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);

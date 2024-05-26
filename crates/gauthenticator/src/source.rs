@@ -1,10 +1,16 @@
 use crate::{
     profile::{ProfileConfig, ProfileWithCredentials},
-    CredentialsFile, CredentialsFileError,
+    CredentialsError, CredentialsSchema,
 };
 
+pub struct SourceDetails {
+    project: String,
+    email: String,
+    source: Source,
+}
+
 pub enum Source {
-    Normal(CredentialsFile),
+    Normal(CredentialsSchema),
     Profile(ProfileWithCredentials),
 }
 
@@ -30,7 +36,7 @@ impl Source {
         }
     }
 
-    pub fn load() -> Result<Source, CredentialsFileError> {
+    pub fn load() -> Result<Source, CredentialsError> {
         if let Ok(source) = ProfileConfig::new()
             .and_then(|p| p.to_credentials())
             .map(|p| Source::Profile(p))
@@ -38,8 +44,8 @@ impl Source {
             return Ok(source);
         }
 
-        let credentials =
-            CredentialsFile::from_well_known_env().or(CredentialsFile::from_well_known_file())?;
+        let credentials = CredentialsSchema::from_well_known_env()
+            .or(CredentialsSchema::from_well_known_file())?;
 
         Ok(Source::Normal(credentials))
     }

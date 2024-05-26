@@ -1,6 +1,6 @@
 use crate::{
     credentials::{AuthorizedUserFile, ServiceAccountFile},
-    sign, CredentialsFile,
+    sign, CredentialsSchema,
 };
 use serde::Deserialize;
 
@@ -23,11 +23,11 @@ pub enum TokenError {
     Http(String),
 }
 
-impl CredentialsFile {
+impl CredentialsSchema {
     pub fn token(&self, audience: Option<String>) -> TokenResult<String> {
         match self {
-            CredentialsFile::AuthorizedUser(user) => user.token(),
-            CredentialsFile::ServiceAccount(service) => service.token(audience),
+            CredentialsSchema::AuthorizedUser(user) => user.token(),
+            CredentialsSchema::ServiceAccount(service) => service.token(audience),
         }
     }
 }

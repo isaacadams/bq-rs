@@ -1,110 +1,128 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use crate::profile::ProfileConfig;
+use crate::profile::{GoogleCloudConfigurationContext, ProfileSchema, ProfileWithCredentials};
 
-const ENV_VARIABLE_NAME: &str = "GOOGLE_APPLICATION_CREDENTIALS";
+pub enum Credentials {
+    Normal(CredentialsSchema),
+    Profile(ProfileWithCredentials),
+}
 
-pub type CredentialFileResult = Result<CredentialsFile, CredentialsFileError>;
+impl Credentials {
+    pub fn email(&self) -> Option<&str> {
+        match self {
+            Credentials::Normal(c) => c.email(),
+            Credentials::Profile(p) => Some(p.config.account.as_str()),
+        }
+    }
+
+    pub fn kind(&self) -> &str {
+        match self {
+            Credentials::Normal(c) => c.kind(),
+            Credentials::Profile(p) => p.credentials.kind(),
+        }
+    }
+
+    pub fn token(&self, audience: Option<String>) -> Result<String, crate::TokenError> {
+        match self {
+            Credentials::Normal(c) => c.token(audience),
+            Credentials::Profile(p) => p.credentials.token(audience),
+        }
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
-pub enum CredentialsFileError {
-    #[error("invalid credentials file because {0}")]
+pub enum Error {
+    #[error("invalid credentials because {0}")]
     InvalidCredentials(String),
 
     #[error("cannot load credentials from {0}")]
     FailedToLoad(String),
+
+    #[error("cannot find profile with name `{0}`")]
+    ProfileNotFound(String),
+
+    #[error("profile has an invalid because {0}")]
+    InvalidProfile(String),
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum CredentialsFile {
+pub enum CredentialsSchema {
     #[serde(rename = "authorized_user")]
     AuthorizedUser(AuthorizedUserFile),
     #[serde(rename = "service_account")]
     ServiceAccount(ServiceAccountFile),
 }
 
-impl CredentialsFile {
+pub type CredentialsResult = Result<Credentials, Error>;
+
+pub enum Source {
+    /// load from environment variable
+    EnvironmentVariable(String),
+    /// load from file path
+    File(PathBuf),
+    /// load from local google cloud profile
+    Profile(String),
+}
+
+impl Source {
+    pub fn identifier(&self) -> String {
+        match self {
+            Source::EnvironmentVariable(name) => format!("env:{}", name),
+            Source::File(path) => path.display().to_string(),
+            Source::Profile(name) => format!(
+                "profile `{}` from `<user_config>/gcloud/configurations/config_default`",
+                name
+            ),
+        }
+    }
+
+    /* pub fn load(&self) -> CredentialsResult {
+        match self {
+            Self::EnvironmentVariable(variable) => {
+                crate::credentials_from_environment_variable(variable)
+                    .credentials()
+                    .map(Credentials::Normal)
+            }
+            Self::File(path) => crate::credentials_from_file(path)
+                .credentials()
+                .map(Credentials::Normal),
+            Self::Profile(_) => Self::load_profile().map(Credentials::Profile),
+        }
+    } */
+
+    /*   pub fn load_profile() -> Result<ProfileWithCredentials, Error> {
+        let context = GoogleCloudConfigurationContext::new()?;
+        let profile = context.core_profile?;
+        profile.to_credentials()
+    } */
+}
+
+impl CredentialsSchema {
     pub fn project_id(&self) -> Option<&str> {
         match self {
-            CredentialsFile::AuthorizedUser(_) => None,
-            CredentialsFile::ServiceAccount(service) => service.project_id.as_deref(),
+            CredentialsSchema::AuthorizedUser(_) => None,
+            CredentialsSchema::ServiceAccount(service) => service.project_id.as_deref(),
         }
     }
 
     pub fn email(&self) -> Option<&str> {
         match self {
-            CredentialsFile::AuthorizedUser(_) => None,
-            CredentialsFile::ServiceAccount(service) => Some(service.client_email.as_str()),
+            CredentialsSchema::AuthorizedUser(_) => None,
+            CredentialsSchema::ServiceAccount(service) => Some(service.client_email.as_str()),
         }
     }
 
-    pub fn deserialize(json: &str) -> Result<Self, CredentialsFileError> {
-        serde_json::from_str(json)
-            .map_err(|e| CredentialsFileError::InvalidCredentials(e.to_string()))
-    }
-
-    pub fn from_env<S: AsRef<str>>(env: S) -> CredentialFileResult {
-        let contents = dotenvy::var(env.as_ref()).map_err(|e| {
-            CredentialsFileError::FailedToLoad(format!("{} because {}", env.as_ref(), e))
-        })?;
-        log::debug!(
-            "loading service account key contents from ${}",
-            env.as_ref()
-        );
-        Self::deserialize(&contents)
-    }
-
-    pub fn from_file<P: AsRef<Path>>(path: P) -> CredentialFileResult {
-        let path = path.as_ref();
-        let contents = std::fs::read_to_string(path).map_err(|e| {
-            CredentialsFileError::FailedToLoad(format!("{} because {}", path.display(), e))
-        })?;
-        log::debug!(
-            "loading service account key contents from {}",
-            path.display()
-        );
-        Self::deserialize(&contents)
-    }
-
-    pub fn from_well_known_env() -> CredentialFileResult {
-        Self::from_env(ENV_VARIABLE_NAME)
-    }
-
-    pub fn from_well_known_file() -> CredentialFileResult {
-        let path = Self::build_well_known_file_path()?;
-        Self::from_file(path)
-    }
-
-    fn build_well_known_file_path() -> Result<PathBuf, CredentialsFileError> {
-        let mut path = Self::get_user_config_directory()?;
-        path.push("gcloud");
-        path.push("application_default_credentials.json");
-        Ok(path)
-    }
-
-    fn get_user_config_directory() -> Result<PathBuf, CredentialsFileError> {
-        let mut path = PathBuf::new();
-        if cfg!(windows) {
-            let app_data = std::env::var("APPDATA").map_err(|e| {
-                CredentialsFileError::FailedToLoad(format!(
-                    "environment variable $APPDATA because {}",
-                    e
-                ))
-            })?;
-            path.push(app_data);
-        } else {
-            let home = std::env::var("HOME").map_err(|e| {
-                CredentialsFileError::FailedToLoad(format!(
-                    "environment variable $HOME because {}",
-                    e
-                ))
-            })?;
-            path.push(home);
-            path.push(".config");
+    pub fn kind(&self) -> &str {
+        match self {
+            CredentialsSchema::AuthorizedUser(_) => "authorized_user",
+            CredentialsSchema::ServiceAccount(_) => "service_account",
         }
-        Ok(path)
+    }
+
+    pub fn deserialize(json: &str) -> Result<Self, Error> {
+        serde_json::from_str(json).map_err(|e| Error::InvalidCredentials(e.to_string()))
     }
 }
 
@@ -113,18 +131,20 @@ pub struct GoogleCloudUserDirectory {
 }
 
 impl GoogleCloudUserDirectory {
-    pub fn new() -> Result<Self, CredentialsFileError> {
+    pub fn new() -> Result<Self, Error> {
         let mut config = Self::get_user_config_directory()?;
         config.push("gcloud");
         Ok(Self { root: config })
     }
 
+    /// file @ `<user_config>/gcloud/application_default_credentials.json`
     pub fn get_application_default_credentials(&self) -> PathBuf {
         let mut file = self.root.clone();
         file.push("application_default_credentials.json");
         file
     }
 
+    /// file @ `<user_config>/gcloud/configurations/config_default`
     pub fn get_config_default(&self) -> PathBuf {
         let mut file = self.root.clone();
         file.push("configurations");
@@ -132,7 +152,8 @@ impl GoogleCloudUserDirectory {
         file
     }
 
-    pub fn get_profile_adc(&self, profile: &ProfileConfig) -> PathBuf {
+    /// file @ `<user_config>/gcloud/legacy_credentials/<email>/adc.json`
+    pub fn get_profile_adc(&self, profile: &ProfileSchema) -> PathBuf {
         let mut file = self.root.clone();
         file.push("legacy_credentials");
         file.push(&profile.account);
@@ -140,22 +161,16 @@ impl GoogleCloudUserDirectory {
         file
     }
 
-    fn get_user_config_directory() -> Result<PathBuf, CredentialsFileError> {
+    fn get_user_config_directory() -> Result<PathBuf, Error> {
         let mut path = PathBuf::new();
         if cfg!(windows) {
             let app_data = std::env::var("APPDATA").map_err(|e| {
-                CredentialsFileError::FailedToLoad(format!(
-                    "environment variable $APPDATA because {}",
-                    e
-                ))
+                Error::FailedToLoad(format!("environment variable $APPDATA because {}", e))
             })?;
             path.push(app_data);
         } else {
             let home = std::env::var("HOME").map_err(|e| {
-                CredentialsFileError::FailedToLoad(format!(
-                    "environment variable $HOME because {}",
-                    e
-                ))
+                Error::FailedToLoad(format!("environment variable $HOME because {}", e))
             })?;
             path.push(home);
             path.push(".config");
@@ -191,7 +206,7 @@ pub struct ServiceAccountFile {
 
 #[cfg(test)]
 mod test {
-    use super::CredentialsFile;
+    use super::CredentialsSchema;
 
     #[test]
     fn authorized_user_deserializes() {
@@ -201,8 +216,8 @@ mod test {
           "refresh_token": "1//12345",
           "type": "authorized_user"
         });
-        let credentials: CredentialsFile = serde_json::from_value(json).unwrap();
-        let CredentialsFile::AuthorizedUser(authorized_user) = credentials else {
+        let credentials: CredentialsSchema = serde_json::from_value(json).unwrap();
+        let CredentialsSchema::AuthorizedUser(authorized_user) = credentials else {
             panic!("failed to deserialize into property structure");
         };
         assert_eq!(
@@ -226,8 +241,8 @@ mod test {
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/yup-test-sa-1%40yup-test-243420.iam.gserviceaccount.com"
         });
-        let credentials: CredentialsFile = serde_json::from_value(json).unwrap();
-        let CredentialsFile::ServiceAccount(service_account) = credentials else {
+        let credentials: CredentialsSchema = serde_json::from_value(json).unwrap();
+        let CredentialsSchema::ServiceAccount(service_account) = credentials else {
             panic!("failed to deserialize into property structure");
         };
         assert_eq!(
