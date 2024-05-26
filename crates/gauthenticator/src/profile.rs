@@ -1,11 +1,6 @@
-use crate::{CredentialsSchema, Error, GoogleCloudUserDirectory};
+use crate::{Error, GoogleCloudUserDirectory};
 use serde::Deserialize;
 use std::io::BufRead;
-
-pub struct ProfileWithCredentials {
-    pub credentials: CredentialsSchema,
-    pub config: ProfileSchema,
-}
 
 #[derive(Deserialize)]
 pub struct ProfileSchema {
@@ -26,18 +21,6 @@ impl GoogleCloudConfigurationContext {
         Ok(Self {
             directory: dir,
             profiles,
-        })
-    }
-}
-
-impl ProfileSchema {
-    pub fn to_credentials(self) -> Result<ProfileWithCredentials, Error> {
-        let dir = GoogleCloudUserDirectory::new()?;
-        let credentials = dir.get_profile_adc(&self);
-        let credentials = crate::credentials_from_file(credentials).credentials()?;
-        Ok(ProfileWithCredentials {
-            config: self,
-            credentials,
         })
     }
 }
@@ -105,14 +88,11 @@ pub fn parse(profiles: &mut Profiles, contents: &[u8]) {
 
             // read the property
             let mut parts = property.split('=');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => {
-                    table.insert(
-                        key.trim().to_string(),
-                        toml::Value::String(value.trim().to_string()),
-                    );
-                }
-                _ => (),
+            if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
+                table.insert(
+                    key.trim().to_string(),
+                    toml::Value::String(value.trim().to_string()),
+                );
             }
         }
 
@@ -131,7 +111,6 @@ mod test {
         let directory = GoogleCloudUserDirectory::new().unwrap();
         let profiles = Profiles::new(&directory);
         assert!(profiles.is_ok());
-        
     }
 
     #[test]
@@ -144,7 +123,5 @@ mod test {
         let credentials = directory.get_profile_adc(&core_profile);
         let credentials = crate::credentials_from_file(credentials);
         assert!(credentials.credentials().is_ok());
-
-        
     }
 }
