@@ -34,21 +34,11 @@ enum Commands {
     Auth,
 }
 
-pub fn load_service_account_key(
-    path_to_key: Option<PathBuf>,
-) -> gauthenticator::CredentialFileResult {
-    if let Some(path) = path_to_key {
-        return gauthenticator::CredentialsFile::from_file(path);
-    };
-
-    gauthenticator::auto_load_service_account_key()
-}
-
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let credentials = load_service_account_key(key);
+        let credentials = gauthenticator::Source::load();
 
         if command == Commands::Auth {
             match credentials {

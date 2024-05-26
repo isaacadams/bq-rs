@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+use crate::profile::ProfileConfig;
+
 const ENV_VARIABLE_NAME: &str = "GOOGLE_APPLICATION_CREDENTIALS";
 
 pub type CredentialFileResult = Result<CredentialsFile, CredentialsFileError>;
@@ -80,6 +82,62 @@ impl CredentialsFile {
         path.push("gcloud");
         path.push("application_default_credentials.json");
         Ok(path)
+    }
+
+    fn get_user_config_directory() -> Result<PathBuf, CredentialsFileError> {
+        let mut path = PathBuf::new();
+        if cfg!(windows) {
+            let app_data = std::env::var("APPDATA").map_err(|e| {
+                CredentialsFileError::FailedToLoad(format!(
+                    "environment variable $APPDATA because {}",
+                    e
+                ))
+            })?;
+            path.push(app_data);
+        } else {
+            let home = std::env::var("HOME").map_err(|e| {
+                CredentialsFileError::FailedToLoad(format!(
+                    "environment variable $HOME because {}",
+                    e
+                ))
+            })?;
+            path.push(home);
+            path.push(".config");
+        }
+        Ok(path)
+    }
+}
+
+pub struct GoogleCloudUserDirectory {
+    root: PathBuf,
+}
+
+impl GoogleCloudUserDirectory {
+    pub fn new() -> Result<Self, CredentialsFileError> {
+        let mut config = Self::get_user_config_directory()?;
+        config.push("gcloud");
+        Ok(Self { root: config })
+    }
+
+    pub fn get_application_default_credentials(&self) -> PathBuf {
+        let mut file = self.root.clone();
+        file.push("application_default_credentials.json");
+        file
+    }
+
+    pub fn get_config_default(&self) -> PathBuf {
+        let mut file = self.root.clone();
+        file.push("configurations");
+        file.push("config_default");
+        file
+    }
+
+    pub fn get_profile_adc(&self, profile: &ProfileConfig) -> PathBuf {
+        let mut file = self.root.clone();
+        file.push("legacy_credentials");
+        file.push(&profile.account);
+        file.push("adc.json");
+        file
     }
 
     fn get_user_config_directory() -> Result<PathBuf, CredentialsFileError> {
