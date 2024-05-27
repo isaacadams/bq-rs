@@ -39,32 +39,31 @@ impl Cli {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
         if command == Commands::Info {
-            let credentials = gauthenticator::credentials_from_env();
+            let credentials = gauthenticator::from_env();
             credentials.print();
             return Ok(());
         }
 
         // tries loading from key if provided
         // otherwise will trying loading from environment
-        let credentials = match key {
-            Some(path) => gauthenticator::credentials_from_file(path)
-                .credentials()
-                .ok(),
-            None => gauthenticator::credentials_from_env().load(),
+        let authentication = match key {
+            Some(path) => Some(gauthenticator::from_file(path)),
+            None => gauthenticator::from_env().authentication(),
         };
 
-        let Some(credentials) = credentials else {
+        let Some(authentication) = authentication else {
             panic!("failed to find credentials");
         };
 
-        let token = credentials.token(None)?;
+        log::debug!("{}", authentication.message());
 
         // load project id from user input or from the service account file
         let project_id = project_id
             .as_deref()
-            .or(credentials.project_id())
+            .or(authentication.project_id())
             .expect("project id is required");
 
+        let token = authentication.token(None)?;
         let client = api::Client::bq_client(token, project_id);
 
         match command {
@@ -75,7 +74,7 @@ impl Cli {
                 println!("{}", query_response.into_csv());
             }
             Commands::Token { audience } => {
-                let token = credentials.token(audience)?;
+                let token = authentication.token(audience)?;
                 println!("{}", token);
             }
             Commands::DatasetList { id } => {

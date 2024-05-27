@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::profile::ProfileSchema;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Clone, thiserror::Error, Debug)]
 pub enum Error {
     #[error("invalid credentials because {0}")]
     InvalidCredentials(String),
@@ -16,6 +16,12 @@ pub enum Error {
 
     #[error("profile has an invalid because {0}")]
     InvalidProfile(String),
+
+    #[error("not found")]
+    NotFound,
+
+    #[error("failed to create token: {0}")]
+    TokenFailed(String),
 }
 
 #[derive(Serialize, Deserialize)]
