@@ -1,5 +1,4 @@
 use crate::{api, query::request::QueryRequestBuilder};
-use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -19,7 +18,7 @@ pub struct Cli {
     command: Commands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, PartialEq)]
 enum Commands {
     Query {
         query: String,
@@ -31,36 +30,51 @@ enum Commands {
         #[arg(short, long)]
         audience: Option<String>,
     },
+    /// get information on the current environment
+    Info,
 }
 
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
         let (key, project_id, command) = (self.key, self.project_id, self.command);
 
-        let sa = if let Some(path_to_key) = key {
-            gauthenticator::ServiceAccountKey::from_file(path_to_key)
-        } else {
-            gauthenticator::ServiceAccountKey::from_env()
+        if command == Commands::Info {
+            let credentials = gauthenticator::from_env();
+            credentials.print();
+            return Ok(());
         }
-        .with_context(|| "failed to load service account")?;
 
-        let token = sa.access_token(None)?;
+        // tries loading from key if provided
+        // otherwise will trying loading from environment
+        let authentication = match key {
+            Some(path) => Some(gauthenticator::from_file(path)),
+            None => gauthenticator::from_env().authentication(),
+        };
+
+        let Some(authentication) = authentication else {
+            panic!("failed to find credentials");
+        };
+
+        log::debug!("{}", authentication.message());
 
         // load project id from user input or from the service account file
         let project_id = project_id
-            .or(sa.project_id.clone())
+            .as_deref()
+            .or(authentication.project_id())
             .expect("project id is required");
 
-        let client = api::Client::bq_client(token, &project_id);
+        let token = authentication.token(None)?;
+        let client = api::Client::bq_client(token, project_id);
 
         match command {
+            Commands::Info => {}
             Commands::Query { query } => {
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.into_csv());
             }
             Commands::Token { audience } => {
-                let token = sa.access_token(audience)?;
+                let token = authentication.token(audience)?;
                 println!("{}", token);
             }
             Commands::DatasetList { id } => {
