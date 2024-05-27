@@ -1,40 +1,25 @@
 # Usage
 
-## Get Access Token
+There are three ways to load authentication credentials for google services.
 
 ```rust
-let credentials: CredentialsFile = gauthenticator::auto_load_service_account_key().unwrap();
-let token = credentials.token(None)?;
-```
+// 1. load credentials from an environment variable
+let authentication = gauthenticator::from_environment_variable("SOME_ENV_VAR");
+// 2. load credentials from a file path
+let authentication = gauthenticator::from_file("/path/to/credentials.json");
+// 3. load credentials from your machine's environment using well known locations
+let authentication = gauthenticator::from_env().authentication();
 
-## Various ways to load a Credential File
+let Some(authentication) = authentication else {
+    panic!("failed to find credentials");
+};
 
-1.  Load from any file path:
+// log out the authentication details
+log::debug!("{}", authentication.message());
 
-```rust
-let credentials = gauthenticator::CredentialsFile::from_file("./path-to/credentials.json").unwrap();
-```
+// load project id from user input or from the service account file
+let project_id = authentication.project_id().expect("project id is required");
 
-2.  Load from `$GOOGLE_APPLICATION_CREDENTIALS`:
-
-```rust
-let credentials = gauthenticator::CredentialsFile::from_well_known_env().unwrap();
-```
-
-3.  Load from any environment variable:
-
-```rust
-let credentials = gauthenticator::CredentialsFile::from_env("SOME_ENVIRONMENT_VARIABLE_NAME").unwrap();
-```
-
-4.  Load using known credentials path (only works if you have `gcloud` installed and have successfully ran `gcloud auth login`)
-
-```rust
-let credentials = CredentialsFile::from_well_known_file().unwrap();
-```
-
-5.  auto load (tries running methods 2 and 4):
-
-```rust
-let credentials = gauthenticator::auto_load_service_account_key().unwrap();
+// create the bearer token
+let token = authentication.token(None)?;
 ```

@@ -4,11 +4,56 @@ mod sign;
 mod token;
 
 /// exports
-pub use credentials::*;
-pub use token::*;
+pub use credentials::Error;
 
+use credentials::CredentialsSchema;
 use profile::{GoogleCloudConfigurationContext, ProfileSchema};
 use std::path::Path;
+
+/// tries loading credentials from various well known locations
+pub fn from_env() -> FromEnv {
+    let mut context = GoogleCloudConfigurationContext::new();
+    let env = FromEnv {
+        google_application_credentials: from_environment_variable("GOOGLE_APPLICATION_CREDENTIALS"),
+        core_profile: context.as_mut().ok().and_then(|cxt| {
+            let profile = cxt.profiles.get("core").ok()?;
+            let path = cxt.directory.get_profile_adc(&profile);
+            let mut auth = crate::from_file(path);
+            auth.core_profile = Some(profile);
+            Some(auth)
+        }),
+        application_default: context
+            .as_ref()
+            .ok()
+            .map(|cxt| from_file(cxt.directory.get_application_default_credentials())),
+    };
+    env
+}
+
+pub fn from_environment_variable<S: AsRef<str>>(variable: S) -> Authentication {
+    let result = dotenvy::var(variable.as_ref())
+        .map_err(|e| Error::FailedToLoad(format!("{} because {}", variable.as_ref(), e)))
+        .and_then(|c| CredentialsSchema::deserialize(&c));
+
+    Authentication {
+        core_profile: None,
+        credentials: result,
+        loading_from: format!("env:{}", variable.as_ref()),
+    }
+}
+
+pub fn from_file<P: AsRef<Path>>(path: P) -> Authentication {
+    let path = path.as_ref();
+    let result = std::fs::read_to_string(path)
+        .map_err(|e| Error::FailedToLoad(format!("{} because {}", path.display(), e)))
+        .and_then(|c| CredentialsSchema::deserialize(&c));
+
+    Authentication {
+        core_profile: None,
+        credentials: result,
+        loading_from: format!("{}", path.display()),
+    }
+}
 
 pub struct Authentication {
     loading_from: String,
@@ -133,50 +178,5 @@ impl FromEnv {
                 .application_default
                 .ok_or(Error::NotFound)
                 .and_then(|c| c.credentials))
-    }
-}
-
-/// tries loading credentials from various well known locations
-pub fn from_env() -> FromEnv {
-    let mut context = GoogleCloudConfigurationContext::new();
-    let env = FromEnv {
-        google_application_credentials: from_environment_variable("GOOGLE_APPLICATION_CREDENTIALS"),
-        core_profile: context.as_mut().ok().and_then(|cxt| {
-            let profile = cxt.profiles.get("core").ok()?;
-            let path = cxt.directory.get_profile_adc(&profile);
-            let mut auth = crate::from_file(path);
-            auth.core_profile = Some(profile);
-            Some(auth)
-        }),
-        application_default: context
-            .as_ref()
-            .ok()
-            .map(|cxt| from_file(cxt.directory.get_application_default_credentials())),
-    };
-    env
-}
-
-pub fn from_environment_variable<S: AsRef<str>>(variable: S) -> Authentication {
-    let result = dotenvy::var(variable.as_ref())
-        .map_err(|e| Error::FailedToLoad(format!("{} because {}", variable.as_ref(), e)))
-        .and_then(|c| CredentialsSchema::deserialize(&c));
-
-    Authentication {
-        core_profile: None,
-        credentials: result,
-        loading_from: format!("env:{}", variable.as_ref()),
-    }
-}
-
-pub fn from_file<P: AsRef<Path>>(path: P) -> Authentication {
-    let path = path.as_ref();
-    let result = std::fs::read_to_string(path)
-        .map_err(|e| Error::FailedToLoad(format!("{} because {}", path.display(), e)))
-        .and_then(|c| CredentialsSchema::deserialize(&c));
-
-    Authentication {
-        core_profile: None,
-        credentials: result,
-        loading_from: format!("{}", path.display()),
     }
 }

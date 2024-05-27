@@ -1,4 +1,4 @@
-use crate::{Error, GoogleCloudUserDirectory};
+use crate::{credentials::GoogleCloudUserDirectory, Error};
 use serde::Deserialize;
 use std::io::BufRead;
 
