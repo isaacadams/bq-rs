@@ -1,4 +1,4 @@
-version: '3.8'
+# https://github.com/goccy/bigquery-emulator
 
 services:
   bigquery-emulator:
