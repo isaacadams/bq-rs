@@ -32,7 +32,17 @@ enum Commands {
     DatasetList {
         id: String,
     },
-    TransferConfigsList,
+
+    /// data transfer service
+    #[command(subcommand)]
+    DT(DataTransferCommands),
+}
+
+#[derive(Debug, Subcommand, PartialEq)]
+enum DataTransferCommands {
+    /// list all data transfer configurations
+    /// required roles: roles/bigquery.admin
+    List,
 }
 
 impl Cli {
@@ -82,13 +92,15 @@ impl Cli {
                 let client = api::Client::bq_client(token, project_id);
                 println!("{}", client.tables_list(&id).into_string()?);
             }
-            Commands::TransferConfigsList => {
-                let token = authentication.token(Some(
-                    "https://bigquerydatatransfer.googleapis.com/".to_string(),
-                ))?;
-                let client = api::transfer::TransferConfigApi::create(token, project_id);
-                client.list();
-            }
+            Commands::DT(dt) => match dt {
+                DataTransferCommands::List => {
+                    let token = authentication.token(Some(
+                        "https://bigquerydatatransfer.googleapis.com/".to_string(),
+                    ))?;
+                    let client = api::transfer::TransferConfigApi::create(token, project_id);
+                    client.list();
+                }
+            },
         };
 
         Ok(())

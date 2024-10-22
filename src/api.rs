@@ -16,7 +16,8 @@ impl Client {
         Self {
             token,
             host: format!(
-                "https://bigquery.googleapis.com/bigquery/v2/projects/{}",
+                "http://0.0.0.0:9050/bigquery/v2/projects/{}",
+                //"https://bigquery.googleapis.com/bigquery/v2/projects/{}",
                 project_id
             ),
         }
