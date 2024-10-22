@@ -18,3 +18,6 @@ clippy:
 
 clippy-fix:
     cargo clippy --verbose --all-features --workspace --fix --allow-dirty
+
+set-service-account file:
+    gcloud auth activate-service-account --key-file="{{file}}"

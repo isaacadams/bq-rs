@@ -20,18 +20,19 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand, PartialEq)]
 enum Commands {
+    /// get information on the current environment
+    Info,
+    Token {
+        #[arg(short, long)]
+        audience: Option<String>,
+    },
     Query {
         query: String,
     },
     DatasetList {
         id: String,
     },
-    Token {
-        #[arg(short, long)]
-        audience: Option<String>,
-    },
-    /// get information on the current environment
-    Info,
+    TransferConfigsList,
 }
 
 impl Cli {
@@ -63,22 +64,30 @@ impl Cli {
             .or(authentication.project_id())
             .expect("project id is required");
 
-        let token = authentication.token(None)?;
-        let client = api::Client::bq_client(token, project_id);
-
         match command {
             Commands::Info => {}
-            Commands::Query { query } => {
-                let request = QueryRequestBuilder::new(query).build();
-                let query_response = client.jobs_query(request);
-                println!("{}", query_response.into_csv());
-            }
             Commands::Token { audience } => {
                 let token = authentication.token(audience)?;
                 println!("{}", token);
             }
+            Commands::Query { query } => {
+                let token = authentication.token(None)?;
+                let client = api::Client::bq_client(token, project_id);
+                let request = QueryRequestBuilder::new(query).build();
+                let query_response = client.jobs_query(request);
+                println!("{}", query_response.into_csv());
+            }
             Commands::DatasetList { id } => {
+                let token = authentication.token(None)?;
+                let client = api::Client::bq_client(token, project_id);
                 println!("{}", client.tables_list(&id).into_string()?);
+            }
+            Commands::TransferConfigsList => {
+                let token = authentication.token(Some(
+                    "https://bigquerydatatransfer.googleapis.com/".to_string(),
+                ))?;
+                let client = api::transfer::TransferConfigApi::create(token, project_id);
+                client.list();
             }
         };
 

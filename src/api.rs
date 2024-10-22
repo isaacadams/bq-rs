@@ -22,8 +22,8 @@ impl Client {
         }
     }
 
-    pub fn endpoint(&self, request: Request, body: ContentType) -> ureq::Response {
-        let request = request.set("AUTHORIZATION", &format!("Bearer {}", &self.token));
+    pub fn endpoint(token: &str, request: Request, body: ContentType) -> ureq::Response {
+        let request = request.set("AUTHORIZATION", &format!("Bearer {}", token));
 
         let response = match body {
             ContentType::Json(data) => request.send_json(data),
@@ -35,7 +35,8 @@ impl Client {
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
     pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
-        let response = self.endpoint(
+        let response = Self::endpoint(
+            &self.token,
             ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location),
             ContentType::None,
         );
@@ -46,7 +47,8 @@ impl Client {
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
     pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
-        let response = self.endpoint(
+        let response = Self::endpoint(
+            &self.token,
             ureq::post(&format!("{}/queries", &self.host)),
             ContentType::Json(serde_json::to_value(request).unwrap()),
         );
@@ -57,7 +59,8 @@ impl Client {
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {
-        self.endpoint(
+        Self::endpoint(
+            &self.token,
             ureq::get(&format!("{}/datasets/{}/tables", &self.host, dataset_id)),
             ContentType::None,
         )
@@ -74,6 +77,38 @@ impl Client {
 
                 panic!("{}\n{}", header, response.into_string().unwrap());
             }
+        }
+    }
+}
+
+/// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest
+pub mod transfer {
+    use crate::api;
+
+    /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.transferConfigs
+    pub struct TransferConfigApi {
+        token: String,
+        host: String,
+    }
+
+    impl TransferConfigApi {
+        pub fn create(token: String, project_id: &str) -> Self {
+            Self {
+                host: format!(
+                    "https://bigquerydatatransfer.googleapis.com/v1/projects/{}/locations/northamerica-northeast1",
+                    project_id
+                ),
+                token,
+            }
+        }
+
+        pub fn list(&self) {
+            let response = api::Client::endpoint(
+                &self.token,
+                ureq::get(&format!("{}/transferConfigs", self.host)),
+                api::ContentType::None,
+            );
+            println!("{}", response.into_string().unwrap());
         }
     }
 }
