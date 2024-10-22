@@ -1,0 +1,11 @@
+# https://github.com/goccy/bigquery-emulator
+
+services:
+  bigquery-emulator:
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    ports:
+      - '9050:9050'
+    command: ['--project=test']
+    platform: linux/x86_64
+    tty: true
+    stdin_open: true

@@ -11,19 +11,69 @@ pub enum ContentType {
     None,
 }
 
+pub enum Services {
+    BigQuery,
+    BigQueryDataTransfer,
+}
+
+impl Services {
+    pub fn host(&self, project_id: &str, region: Option<&str>) -> String {
+        match &self {
+            Services::BigQuery => Client::host(
+                "bigquery.googleapis.com",
+                Some("bigquery/v2"),
+                project_id,
+                region,
+            ),
+            Services::BigQueryDataTransfer => Client::host(
+                "bigquerydatatransfer.googleapis.com",
+                Some("v1"),
+                project_id,
+                region,
+            ),
+        }
+    }
+}
+
 impl Client {
     pub fn bq_client(token: String, project_id: &str) -> Self {
         Self {
             token,
             host: format!(
+                //"http://localhost:9050/bigquery/v2/projects/{}",
                 "https://bigquery.googleapis.com/bigquery/v2/projects/{}",
                 project_id
             ),
         }
     }
 
-    pub fn endpoint(&self, request: Request, body: ContentType) -> ureq::Response {
-        let request = request.set("AUTHORIZATION", &format!("Bearer {}", &self.token));
+    pub fn host(
+        service: &str,
+        prefix: Option<&str>,
+        project_id: &str,
+        region: Option<&str>,
+    ) -> String {
+        let mut parts = vec![service];
+
+        if let Some(prefix) = prefix {
+            parts.push(prefix);
+        }
+
+        parts.push("projects");
+        parts.push(project_id);
+
+        if let Some(region) = region {
+            parts.push("locations");
+            parts.push(region);
+        }
+
+        let mut host = parts.join("/");
+        host.insert_str(0, "https://");
+        host
+    }
+
+    pub fn endpoint(token: &str, request: Request, body: ContentType) -> ureq::Response {
+        let request = request.set("AUTHORIZATION", &format!("Bearer {}", token));
 
         let response = match body {
             ContentType::Json(data) => request.send_json(data),
@@ -35,7 +85,8 @@ impl Client {
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
     pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
-        let response = self.endpoint(
+        let response = Self::endpoint(
+            &self.token,
             ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location),
             ContentType::None,
         );
@@ -46,7 +97,8 @@ impl Client {
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
     pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
-        let response = self.endpoint(
+        let response = Self::endpoint(
+            &self.token,
             ureq::post(&format!("{}/queries", &self.host)),
             ContentType::Json(serde_json::to_value(request).unwrap()),
         );
@@ -57,7 +109,8 @@ impl Client {
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {
-        self.endpoint(
+        Self::endpoint(
+            &self.token,
             ureq::get(&format!("{}/datasets/{}/tables", &self.host, dataset_id)),
             ContentType::None,
         )
@@ -75,5 +128,58 @@ impl Client {
                 panic!("{}\n{}", header, response.into_string().unwrap());
             }
         }
+    }
+}
+
+/// API: https://cloud.google.com/bigquery/docs/reference/datatransfer/rest
+/// Service: https://cloud.google.com/bigquery/docs/dts-introduction
+/// Create Transfer Config: https://cloud.google.com/bigquery/docs/reference/bq-cli-reference#mk-transfer-config
+pub mod transfer {
+    use crate::api;
+
+    pub struct TransferConfigApi {
+        token: String,
+        host: String,
+    }
+
+    impl TransferConfigApi {
+        pub fn create(token: String, project_id: &str) -> Self {
+            Self {
+                host: format!(
+                    "https://bigquerydatatransfer.googleapis.com/v1/projects/{}/locations/northamerica-northeast1",
+                    project_id
+                ),
+                token,
+            }
+        }
+
+        /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.transferConfigs/list
+        /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/list
+        pub fn list(&self) {
+            let response = api::Client::endpoint(
+                &self.token,
+                ureq::get(&format!("{}/transferConfigs", self.host)),
+                api::ContentType::None,
+            );
+            println!("{}", response.into_string().unwrap());
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    pub fn host_constructs_correctly() {
+        assert_eq!(
+            Services::BigQuery.host("test", None),
+            "https://bigquery.googleapis.com/bigquery/v2/projects/test"
+        );
+        assert_eq!(
+            Services::BigQueryDataTransfer.host("test", Some("northamerica-northeast1")),
+            "https://bigquerydatatransfer.googleapis.com/v1/projects/test/locations/northamerica-northeast1"
+        );
+        ()
     }
 }

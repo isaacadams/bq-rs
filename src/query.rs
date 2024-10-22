@@ -1,4 +1,7 @@
+const DEFAULT_LOCATION: &str = "us";
+
 pub mod request {
+
     #[derive(Debug)]
     pub struct QueryRequestBuilder {
         query_request: QueryRequest,
@@ -50,8 +53,6 @@ pub mod request {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#queryrequest>
     pub struct QueryRequest {
-        /// deprecated
-        kind: Option<String>,
         query: String,
         max_results: Option<i32>,
         default_dataset: Option<DatasetReference>,
@@ -81,7 +82,6 @@ pub mod request {
     impl QueryRequest {
         pub fn new(query: String) -> Self {
             Self {
-                kind: None,
                 query: query.replace('\n', ""),
                 max_results: None,
                 default_dataset: None,
@@ -158,7 +158,7 @@ pub mod response {
     pub struct QueryResponseDryRun {
         pub job_complete: bool,
         pub job_reference: Option<JobReference>,
-        pub kind: String,
+        pub kind: Option<String>,
         pub schema: TableSchema,
         pub total_bytes_processed: Option<String>,
     }
@@ -203,7 +203,7 @@ pub mod response {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponse {
-        pub kind: String,
+        pub kind: Option<String>,
         pub etag: Option<String>,
         pub schema: Option<TableSchema>,
         pub job_reference: JobReference,
@@ -248,8 +248,13 @@ pub mod response {
                 panic!("no id found for incomplete job");
             };
 
+            let location = self
+                .job_reference
+                .location
+                .as_deref()
+                .unwrap_or(super::DEFAULT_LOCATION.as_ref());
             let handler = || {
-                let response = client.jobs_query_results(job_id, &self.job_reference.location);
+                let response = client.jobs_query_results(job_id, location);
 
                 if response.job_complete {
                     Some(response)
@@ -341,7 +346,7 @@ pub mod response {
         pub name: String,
         #[serde(rename = "type")]
         pub field_type: String,
-        pub mode: String,
+        pub mode: Option<String>,
         pub fields: Option<Vec<TableFieldSchema>>,
         pub description: Option<String>,
         pub policy_tags: Option<PolicyTags>,
@@ -374,7 +379,7 @@ pub mod response {
         pub project_id: String,
         /// dry runs do not contain a `job_id`
         pub job_id: Option<String>,
-        pub location: String,
+        pub location: Option<String>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
