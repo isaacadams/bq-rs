@@ -81,11 +81,12 @@ impl Client {
     }
 }
 
-/// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest
+/// API: https://cloud.google.com/bigquery/docs/reference/datatransfer/rest
+/// Service: https://cloud.google.com/bigquery/docs/dts-introduction
+/// Create Transfer Config: https://cloud.google.com/bigquery/docs/reference/bq-cli-reference#mk-transfer-config
 pub mod transfer {
     use crate::api;
 
-    /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.transferConfigs
     pub struct TransferConfigApi {
         token: String,
         host: String,
@@ -102,6 +103,8 @@ pub mod transfer {
             }
         }
 
+        /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.transferConfigs/list
+        /// https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/list
         pub fn list(&self) {
             let response = api::Client::endpoint(
                 &self.token,
