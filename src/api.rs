@@ -11,16 +11,65 @@ pub enum ContentType {
     None,
 }
 
+pub enum Services {
+    BigQuery,
+    BigQueryDataTransfer,
+}
+
+impl Services {
+    pub fn host(&self, project_id: &str, region: Option<&str>) -> String {
+        match &self {
+            Services::BigQuery => Client::host(
+                "bigquery.googleapis.com",
+                Some("bigquery/v2"),
+                project_id,
+                region,
+            ),
+            Services::BigQueryDataTransfer => Client::host(
+                "bigquerydatatransfer.googleapis.com",
+                Some("v1"),
+                project_id,
+                region,
+            ),
+        }
+    }
+}
+
 impl Client {
     pub fn bq_client(token: String, project_id: &str) -> Self {
         Self {
             token,
             host: format!(
-                "http://0.0.0.0:9050/bigquery/v2/projects/{}",
-                //"https://bigquery.googleapis.com/bigquery/v2/projects/{}",
+                //"http://localhost:9050/bigquery/v2/projects/{}",
+                "https://bigquery.googleapis.com/bigquery/v2/projects/{}",
                 project_id
             ),
         }
+    }
+
+    pub fn host(
+        service: &str,
+        prefix: Option<&str>,
+        project_id: &str,
+        region: Option<&str>,
+    ) -> String {
+        let mut parts = vec![service];
+
+        if let Some(prefix) = prefix {
+            parts.push(prefix);
+        }
+
+        parts.push("projects");
+        parts.push(project_id);
+
+        if let Some(region) = region {
+            parts.push("locations");
+            parts.push(region);
+        }
+
+        let mut host = parts.join("/");
+        host.insert_str(0, "https://");
+        host
     }
 
     pub fn endpoint(token: &str, request: Request, body: ContentType) -> ureq::Response {
@@ -114,5 +163,23 @@ pub mod transfer {
             );
             println!("{}", response.into_string().unwrap());
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    pub fn host_constructs_correctly() {
+        assert_eq!(
+            Services::BigQuery.host("test", None),
+            "https://bigquery.googleapis.com/bigquery/v2/projects/test"
+        );
+        assert_eq!(
+            Services::BigQueryDataTransfer.host("test", Some("northamerica-northeast1")),
+            "https://bigquerydatatransfer.googleapis.com/v1/projects/test/locations/northamerica-northeast1"
+        );
+        ()
     }
 }
