@@ -65,7 +65,7 @@ pub fn parse(profiles: &mut Profiles, contents: &[u8]) {
             continue;
         };
 
-        let name = line.trim_matches(&['[', ']']);
+        let name = line.trim_matches(['[', ']']);
         if name.is_empty() {
             continue;
         }
