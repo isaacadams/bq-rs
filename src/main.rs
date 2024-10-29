@@ -1,6 +1,4 @@
-mod api;
 mod cli;
-mod query;
 
 use clap::Parser;
 use cli::Cli;

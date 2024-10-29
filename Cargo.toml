@@ -18,6 +18,9 @@ keywords = ["gcp", "bigquery", "cli"]
 name = "bq-rs"
 path = "src/main.rs"
 
+[lib]
+src = "src/lib.rs"
+
 [workspace]
 members = [ "crates/*" ]
 

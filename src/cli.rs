@@ -1,4 +1,3 @@
-use crate::{api, query::request::QueryRequestBuilder};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -64,12 +63,12 @@ impl Cli {
             .expect("project id is required");
 
         let token = authentication.token(None)?;
-        let client = api::Client::bq_client(token, project_id);
+        let client = bq_rs::api::Client::bq_client(token, project_id);
 
         match command {
             Commands::Info => {}
             Commands::Query { query } => {
-                let request = QueryRequestBuilder::new(query).build();
+                let request = bq_rs::query::request::QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.into_csv());
             }
