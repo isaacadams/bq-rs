@@ -1,6 +1,6 @@
 [package]
 name = "bq-rs"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Isaac Adams <crates.io.engine538@passinbox.com>"]
 license = "MIT OR Apache-2.0"
@@ -17,6 +17,9 @@ keywords = ["gcp", "bigquery", "cli"]
 [[bin]]
 name = "bq-rs"
 path = "src/main.rs"
+
+[lib]
+src = "src/lib.rs"
 
 [workspace]
 members = [ "crates/*" ]
