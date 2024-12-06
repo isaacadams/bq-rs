@@ -261,7 +261,8 @@ pub mod response {
             retry(handler, None)
         }
 
-        fn safe_csv(mut row: String) -> String {
+        /// follow proper csv convention: https://stackoverflow.com/a/769820
+        fn csv_formatting_rules(mut row: String) -> String {
             let mut add_quotes = row.contains(&[',', '\n']);
 
             if row.contains('"') {
@@ -285,7 +286,7 @@ pub mod response {
                     .fields
                     .into_iter()
                     .map(|c| c.name)
-                    .map(Self::safe_csv)
+                    .map(Self::csv_formatting_rules)
                     .collect();
                 rows.push(header.join(","));
             }
@@ -307,7 +308,7 @@ pub mod response {
                                 //serde_json::Value::Object(_) => todo!(),
                             })
                             // surround values with double quotes
-                            .map(Self::safe_csv)
+                            .map(Self::csv_formatting_rules)
                             .collect();
                         Some(row.join(","))
                     }
