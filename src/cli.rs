@@ -21,6 +21,8 @@ pub struct Cli {
 enum Commands {
     Query {
         query: String,
+        #[arg(short, long)]
+        format: Option<String>,
     },
     DatasetList {
         id: String,
@@ -67,10 +69,17 @@ impl Cli {
 
         match command {
             Commands::Info => {}
-            Commands::Query { query } => {
+            Commands::Query { query, format } => {
                 let request = bq_rs::query::request::QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
-                println!("{}", query_response.into_csv());
+
+                match format.as_deref() {
+                    Some("csv") => println!("{}", query_response.into_csv()),
+                    // this is not ready
+                    // Some("json") => println!("{}", query_response.into_json()),
+                    // default to csv output
+                    _ => println!("{}", query_response.into_csv()),
+                }
             }
             Commands::Token { audience } => {
                 let token = authentication.token(audience)?;

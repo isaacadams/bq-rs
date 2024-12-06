@@ -21,3 +21,9 @@ clippy-fix:
 
 # gcloud_directory
 # mac: ~/.config/gcloud
+
+list-datasets:
+  cargo run -- query "select * from INFORMATION_SCHEMA.SCHEMATA"
+
+list-tables dataset:
+  cargo run -- query "select * from `{{dataset}}.INFORMATION_SCHEMA.TABLES`"
