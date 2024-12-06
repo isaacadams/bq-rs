@@ -13,7 +13,7 @@ release:
 delete_version tag: 
   git tag --delete {{tag}}
 
-clippy: 
+tidy: 
   cargo clippy --verbose --all-features --workspace
 
 clippy-fix: 

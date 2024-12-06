@@ -263,7 +263,7 @@ pub mod response {
 
         /// follow proper csv convention: https://stackoverflow.com/a/769820
         fn csv_formatting_rules(mut row: String) -> String {
-            let mut add_quotes = row.contains(&[',', '\n']);
+            let mut add_quotes = row.contains([',', '\n']);
 
             if row.contains('"') {
                 row = row.replace('"', "\"\"");
