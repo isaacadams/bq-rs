@@ -96,11 +96,11 @@ impl Cli {
                 let query_response = client.jobs_query(request);
 
                 match format.as_deref() {
-                    Some("csv") => println!("{}", query_response.into_csv()),
+                    Some("csv") => print!("{}", query_response.into_csv()),
                     // this is not ready
                     // Some("json") => println!("{}", query_response.into_json()),
                     // default to csv output
-                    _ => println!("{}", query_response.into_csv()),
+                    _ => print!("{}", query_response.into_csv()),
                 }
             }
             Commands::DatasetList { id } => {

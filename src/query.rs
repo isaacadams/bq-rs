@@ -328,7 +328,10 @@ pub mod response {
 
             rows.append(values.as_mut());
 
-            rows.join(crate::query::NEWLINE)
+            let mut csv = rows.join(crate::query::NEWLINE);
+            // gcloud bq tool ends with platform-specific newline
+            csv.push_str(crate::query::NEWLINE);
+            csv
         }
 
         #[allow(dead_code)]

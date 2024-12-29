@@ -33,10 +33,15 @@ dev:
   docker compose up -d
   bash test/load.sh
 
-test:
+# just test_query_parity
+test_query_parity:
   cargo b --release -q
-  bq --api http://localhost:9050 query --project_id=test --format=csv "SELECT * FROM test_dataset.test_table" | md5
-  ./target/release/bq-rs --api=http://localhost:9050 --project-id test query "SELECT * FROM test_dataset.test_table" | md5
+  bq --api http://localhost:9050 query --project_id=test --format=csv "SELECT * FROM test_dataset.test_table" > bq.csv
+  ./target/release/bq-rs --api=http://localhost:9050 --project-id test query "SELECT * FROM test_dataset.test_table" > bq-rs.csv
+  xxd bq.csv > bq.hex
+  xxd bq-rs.csv > bq-rs.hex
+  code --diff bq-rs.hex bq.hex
+  md5sum bq.csv bq-rs.csv
 
 list-datasets:
   cargo run -- query "select * from INFORMATION_SCHEMA.SCHEMATA"
