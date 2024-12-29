@@ -1,3 +1,4 @@
+export BQ_EMULATOR=1
 HOST=http://localhost:9050
 
 # Create a dataset
