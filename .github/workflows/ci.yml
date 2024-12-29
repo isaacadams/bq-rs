@@ -13,16 +13,37 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    services:
+      bigquery-emulator:
+        image: ghcr.io/goccy/bigquery-emulator:latest
+        ports:
+          - 9050:9050
+        options: >-
+          --platform linux/x86_64
+          --tty
+          --stdin-open
     steps:
       - uses: actions/checkout@v4
 
-      - name: install cargo
+      - name: Install Cargo
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: 'latest'
+
+      - name: check versions
+        run: gcloud -v
+
+      - run: bash test/load.sh
 
       - run: cargo test --verbose --all-features --workspace
 
