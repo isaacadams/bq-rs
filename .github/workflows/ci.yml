@@ -13,10 +13,7 @@ env:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     services:
       bigquery-emulator:
         image: ghcr.io/goccy/bigquery-emulator:latest
