@@ -18,6 +18,7 @@ pub enum ServiceName {
 
 pub struct ServiceConfig {
     host: String,
+    #[allow(dead_code)]
     name: ServiceName,
 }
 
@@ -211,6 +212,5 @@ mod test {
             ServiceName::BigQueryDataTransfer.host(None, "test", Some("northamerica-northeast1")),
             "https://bigquerydatatransfer.googleapis.com/v1/projects/test/locations/northamerica-northeast1"
         );
-        
     }
 }
