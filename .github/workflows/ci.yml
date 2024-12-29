@@ -23,9 +23,8 @@ jobs:
         ports:
           - 9050:9050
         options: >-
-          --platform linux/x86_64
-          --tty
-          --stdin-open
+          --platform=linux/x86_64
+          --project=test
     steps:
       - uses: actions/checkout@v4
 
