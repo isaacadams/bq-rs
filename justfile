@@ -13,7 +13,7 @@ release:
 delete_version tag: 
   git tag --delete {{tag}}
 
-clippy: 
+tidy: 
   cargo clippy --verbose --all-features --workspace
 
 clippy-fix:
@@ -37,3 +37,9 @@ test:
   cargo b --release -q
   bq --api http://localhost:9050 query --project_id=test --format=csv "SELECT * FROM test_dataset.test_table" | md5
   ./target/release/bq-rs --api=http://localhost:9050 --project-id test query "SELECT * FROM test_dataset.test_table" | md5
+
+list-datasets:
+  cargo run -- query "select * from INFORMATION_SCHEMA.SCHEMATA"
+
+list-tables dataset:
+  cargo run -- query "select * from `{{dataset}}.INFORMATION_SCHEMA.TABLES`"

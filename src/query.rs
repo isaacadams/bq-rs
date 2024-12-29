@@ -271,11 +271,33 @@ pub mod response {
             retry(handler, None)
         }
 
+        /// follow proper csv convention: https://stackoverflow.com/a/769820
+        fn csv_formatting_rules(mut row: String) -> String {
+            let mut add_quotes = row.contains([',', '\n']);
+
+            if row.contains('"') {
+                row = row.replace('"', "\"\"");
+                add_quotes = true;
+            }
+
+            if add_quotes {
+                row.insert(0, '"');
+                row.push('"');
+            }
+
+            row
+        }
+
         pub fn into_csv(self) -> String {
             let mut rows: Vec<String> = Vec::new();
 
             if let Some(schema) = self.schema {
-                let header: Vec<String> = schema.fields.into_iter().map(|c| c.name).collect();
+                let header: Vec<String> = schema
+                    .fields
+                    .into_iter()
+                    .map(|c| c.name)
+                    .map(Self::csv_formatting_rules)
+                    .collect();
                 rows.push(header.join(","));
             }
 
@@ -288,13 +310,15 @@ pub mod response {
                             .into_iter()
                             .map(|v| match v["v"].clone() {
                                 serde_json::Value::String(x) => x,
-                                serde_json::Value::Null => String::new(),
                                 serde_json::Value::Bool(x) => x.to_string(),
                                 serde_json::Value::Number(x) => x.to_string(),
+                                serde_json::Value::Null => String::new(),
                                 _ => String::new(),
                                 //serde_json::Value::Array(_) => todo!(),
                                 //serde_json::Value::Object(_) => todo!(),
                             })
+                            // surround values with double quotes
+                            .map(Self::csv_formatting_rules)
                             .collect();
                         Some(row.join(","))
                     }
@@ -308,6 +332,9 @@ pub mod response {
         }
 
         #[allow(dead_code)]
+        /// this needs works
+        /// it is not outputting proper json format
+        /// it needs to convert from google bigqquery protobuf
         pub fn into_json(self) -> serde_json::Value {
             let mut rows: Vec<serde_json::Value> = Vec::new();
 

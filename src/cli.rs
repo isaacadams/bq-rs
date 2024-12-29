@@ -1,4 +1,4 @@
-use crate::{api, query::request::QueryRequestBuilder};
+use bq_rs::{api, query::request::QueryRequestBuilder};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -32,6 +32,8 @@ enum Commands {
     },
     Query {
         query: String,
+        #[arg(short, long)]
+        format: Option<String>,
     },
     DatasetList {
         id: String,
@@ -84,7 +86,7 @@ impl Cli {
                 let token = authentication.token(audience)?;
                 println!("{}", token);
             }
-            Commands::Query { query } => {
+            Commands::Query { query, format } => {
                 let token = authentication.token(None)?;
                 let client = api::Client::bq_client(
                     token,
@@ -92,7 +94,14 @@ impl Cli {
                 );
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
-                println!("{}", query_response.into_csv());
+
+                match format.as_deref() {
+                    Some("csv") => println!("{}", query_response.into_csv()),
+                    // this is not ready
+                    // Some("json") => println!("{}", query_response.into_json()),
+                    // default to csv output
+                    _ => println!("{}", query_response.into_csv()),
+                }
             }
             Commands::DatasetList { id } => {
                 let token = authentication.token(None)?;
