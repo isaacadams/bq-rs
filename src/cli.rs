@@ -14,6 +14,10 @@ pub struct Cli {
     #[arg(short, long)]
     project_id: Option<String>,
 
+    /// API Host
+    #[arg(short, long)]
+    api: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -47,7 +51,7 @@ enum DataTransferCommands {
 
 impl Cli {
     pub fn run(self) -> anyhow::Result<()> {
-        let (key, project_id, command) = (self.key, self.project_id, self.command);
+        let (key, project_id, api, command) = (self.key, self.project_id, self.api, self.command);
 
         if command == Commands::Info {
             let credentials = gauthenticator::from_env();
@@ -82,14 +86,20 @@ impl Cli {
             }
             Commands::Query { query } => {
                 let token = authentication.token(None)?;
-                let client = api::Client::bq_client(token, project_id);
+                let client = api::Client::bq_client(
+                    token,
+                    api::ServiceName::BigQuery.create(project_id, api.as_deref(), None),
+                );
                 let request = QueryRequestBuilder::new(query).build();
                 let query_response = client.jobs_query(request);
                 println!("{}", query_response.into_csv());
             }
             Commands::DatasetList { id } => {
                 let token = authentication.token(None)?;
-                let client = api::Client::bq_client(token, project_id);
+                let client = api::Client::bq_client(
+                    token,
+                    api::ServiceName::BigQuery.create(project_id, api.as_deref(), None),
+                );
                 println!("{}", client.tables_list(&id).into_string()?);
             }
             Commands::DT(dt) => match dt {

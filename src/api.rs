@@ -11,22 +11,45 @@ pub enum ContentType {
     None,
 }
 
-pub enum Services {
+pub enum ServiceName {
     BigQuery,
     BigQueryDataTransfer,
 }
 
-impl Services {
-    pub fn host(&self, project_id: &str, region: Option<&str>) -> String {
+pub struct ServiceConfig {
+    host: String,
+    name: ServiceName,
+}
+
+impl ServiceName {
+    pub fn create(
+        self,
+        project_id: &str,
+        host: Option<&str>,
+        region: Option<&str>,
+    ) -> ServiceConfig {
+        match self {
+            ServiceName::BigQuery => ServiceConfig {
+                host: self.host(host, &project_id, region),
+                name: self,
+            },
+            ServiceName::BigQueryDataTransfer => ServiceConfig {
+                host: self.host(host, &project_id, region),
+                name: self,
+            },
+        }
+    }
+
+    pub fn host(&self, host: Option<&str>, project_id: &str, region: Option<&str>) -> String {
         match &self {
-            Services::BigQuery => Client::host(
-                "bigquery.googleapis.com",
+            ServiceName::BigQuery => Client::host(
+                host.unwrap_or("https://bigquery.googleapis.com/"),
                 Some("bigquery/v2"),
                 project_id,
                 region,
             ),
-            Services::BigQueryDataTransfer => Client::host(
-                "bigquerydatatransfer.googleapis.com",
+            ServiceName::BigQueryDataTransfer => Client::host(
+                host.unwrap_or("https://bigquerydatatransfer.googleapis.com/"),
                 Some("v1"),
                 project_id,
                 region,
@@ -36,14 +59,10 @@ impl Services {
 }
 
 impl Client {
-    pub fn bq_client(token: String, project_id: &str) -> Self {
+    pub fn bq_client(token: String, config: ServiceConfig) -> Self {
         Self {
             token,
-            host: format!(
-                //"http://localhost:9050/bigquery/v2/projects/{}",
-                "https://bigquery.googleapis.com/bigquery/v2/projects/{}",
-                project_id
-            ),
+            host: config.host,
         }
     }
 
@@ -53,7 +72,14 @@ impl Client {
         project_id: &str,
         region: Option<&str>,
     ) -> String {
-        let mut parts = vec![service];
+        if !(service.starts_with("http://") || service.starts_with("https://")) {
+            panic!(
+                "service must be a valid http protocol: missing http(s):// -> {}",
+                service
+            )
+        }
+
+        let mut parts = Vec::with_capacity(5);
 
         if let Some(prefix) = prefix {
             parts.push(prefix);
@@ -67,9 +93,14 @@ impl Client {
             parts.push(region);
         }
 
-        let mut host = parts.join("/");
-        host.insert_str(0, "https://");
-        host
+        let host = parts.join("/");
+
+        //host.insert_str(0, "https://");
+        if service.ends_with("/") {
+            format!("{}{}", service, host)
+        } else {
+            format!("{}/{}", service, host)
+        }
     }
 
     pub fn endpoint(token: &str, request: Request, body: ContentType) -> ureq::Response {
@@ -173,11 +204,11 @@ mod test {
     #[test]
     pub fn host_constructs_correctly() {
         assert_eq!(
-            Services::BigQuery.host("test", None),
+            ServiceName::BigQuery.host(None, "test", None),
             "https://bigquery.googleapis.com/bigquery/v2/projects/test"
         );
         assert_eq!(
-            Services::BigQueryDataTransfer.host("test", Some("northamerica-northeast1")),
+            ServiceName::BigQueryDataTransfer.host(None, "test", Some("northamerica-northeast1")),
             "https://bigquerydatatransfer.googleapis.com/v1/projects/test/locations/northamerica-northeast1"
         );
         ()

@@ -1,4 +1,9 @@
 const DEFAULT_LOCATION: &str = "us";
+#[cfg(windows)]
+const NEWLINE: &str = "\r\n";
+
+#[cfg(not(windows))]
+const NEWLINE: &str = "\n";
 
 pub mod request {
 
@@ -299,7 +304,7 @@ pub mod response {
 
             rows.append(values.as_mut());
 
-            rows.join("\n")
+            rows.join(crate::query::NEWLINE)
         }
 
         #[allow(dead_code)]
