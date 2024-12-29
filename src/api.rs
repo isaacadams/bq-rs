@@ -30,11 +30,11 @@ impl ServiceName {
     ) -> ServiceConfig {
         match self {
             ServiceName::BigQuery => ServiceConfig {
-                host: self.host(host, &project_id, region),
+                host: self.host(host, project_id, region),
                 name: self,
             },
             ServiceName::BigQueryDataTransfer => ServiceConfig {
-                host: self.host(host, &project_id, region),
+                host: self.host(host, project_id, region),
                 name: self,
             },
         }
@@ -211,6 +211,6 @@ mod test {
             ServiceName::BigQueryDataTransfer.host(None, "test", Some("northamerica-northeast1")),
             "https://bigquerydatatransfer.googleapis.com/v1/projects/test/locations/northamerica-northeast1"
         );
-        ()
+        
     }
 }
