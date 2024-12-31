@@ -1,5 +1,7 @@
 /// testing this this cli tool achieves parity with googles
 /// requires that gcloud be installed
+/// it also expects a specific dataset to be loaded
+/// ensure to run `just dev` before running these tests
 use std::io;
 use std::process::Command;
 
