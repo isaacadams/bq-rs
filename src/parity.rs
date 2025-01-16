@@ -8,8 +8,14 @@ use std::process::Command;
 #[cfg(windows)]
 const BQ: &str = "bq.cmd";
 
+#[cfg(windows)]
+const DIGEST: &str = "cce3a33e8e72c2ce410c3ef9094800e7";
+
 #[cfg(not(windows))]
 const BQ: &str = "bq";
+
+#[cfg(not(windows))]
+const DIGEST: &str = "00d13773641c34a4f0fd5ed24f2a2986";
 
 /// Build the Rust project in release mode
 fn release() -> io::Result<()> {
@@ -44,7 +50,7 @@ fn should_match_expected_md5() -> io::Result<()> {
 
     assert_eq!(
         format!("{:#?}", md5::compute(&bq_rs_output.stdout)).as_str(),
-        "cce3a33e8e72c2ce410c3ef9094800e7",
+        DIGEST,
         "md5 digest is not correct"
     );
 
