@@ -9,3 +9,7 @@ bq --api $HOST --project_id=test mk --table test_dataset.test_table name:STRING,
 
 # load data
 bq --api $HOST --project_id=test query < ./test/insert_statements.sql
+
+# Create `some_empty``
+bq --api $HOST --project_id=test mk --table test_dataset.some_empty name:STRING,age:INTEGER
+bq --api $HOST --project_id=test query < ./test/some_empty.sql

@@ -58,7 +58,13 @@ fn should_match_expected_md5() -> io::Result<()> {
 }
 
 #[test]
-fn compare_bq_and_bq_rs_outputs() -> io::Result<()> {
+fn compare_csv_outputs() -> io::Result<()> {
+    compare_bq_and_bq_rs_csv_outputs("SELECT * FROM test_dataset.test_table")?;
+    compare_bq_and_bq_rs_csv_outputs("SELECT * FROM test_dataset.some_empty")?;
+    Ok(())
+}
+
+fn compare_bq_and_bq_rs_csv_outputs(query: &str) -> io::Result<()> {
     release()?;
 
     // Execute the `bq` query
@@ -69,7 +75,7 @@ fn compare_bq_and_bq_rs_outputs() -> io::Result<()> {
             "query",
             "--project_id=test",
             "--format=csv",
-            "SELECT * FROM test_dataset.test_table",
+            query,
         ])
         .output()?;
 
@@ -85,7 +91,7 @@ fn compare_bq_and_bq_rs_outputs() -> io::Result<()> {
             "--api=http://localhost:9050",
             "--project-id=test",
             "query",
-            "SELECT * FROM test_dataset.test_table",
+            query,
         ])
         .output()?;
 
@@ -97,7 +103,10 @@ fn compare_bq_and_bq_rs_outputs() -> io::Result<()> {
 
     assert_eq!(
         bq_output.stdout, bq_rs_output.stdout,
-        "the outputs of bq bq-rs differ!"
+        "\n\nthe outputs of bq bq-rs differ for the query:\n\n```\n{}\n```\n\nbq:\n```\n{}\n```\n\nbq-rs:\n```\n{}\n```\n\n",
+        query,
+        String::from_utf8_lossy(&bq_output.stdout),
+        String::from_utf8_lossy(&bq_rs_output.stdout)
     );
 
     Ok(())

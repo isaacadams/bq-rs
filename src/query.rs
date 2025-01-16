@@ -157,8 +157,9 @@ pub mod request {
 
 pub mod response {
     use core::time;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponseDryRun {
         pub job_complete: bool,
@@ -205,7 +206,7 @@ pub mod response {
         num_dml_affected_rows: String,
     } */
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponse {
         pub kind: Option<String>,
@@ -216,13 +217,27 @@ pub mod response {
         pub total_rows: Option<String>,
         pub page_token: Option<String>,
         #[serde(default)]
-        pub rows: Vec<serde_json::Value>,
+        pub rows: Vec<TableRow>,
         pub total_bytes_processed: Option<String>,
         pub job_complete: bool,
         pub errors: Option<Vec<ErrorProto>>,
         #[serde(default)]
         pub cache_hit: bool,
         pub num_dml_affected_rows: Option<String>,
+    }
+
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TableRow {
+        #[serde(rename = "f", skip_serializing_if = "Option::is_none")]
+        pub columns: Option<Vec<TableCell>>,
+    }
+
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TableCell {
+        #[serde(rename = "v", skip_serializing_if = "Option::is_none")]
+        pub value: Option<serde_json::Value>,
     }
 
     pub fn retry<T>(handler: impl Fn() -> Option<T>, retries: Option<u32>) -> T {
@@ -304,11 +319,12 @@ pub mod response {
             let mut values: Vec<String> = self
                 .rows
                 .into_iter()
-                .filter_map(|v| match v["f"].clone() {
-                    serde_json::Value::Array(a) => {
-                        let row: Vec<String> = a
-                            .into_iter()
-                            .map(|v| match v["v"].clone() {
+                .filter_map(|v| {
+                    let row: Vec<String> = v
+                        .columns?
+                        .into_iter()
+                        .map(|v| {
+                            match v.value.unwrap_or(serde_json::Value::Null) {
                                 serde_json::Value::String(x) => x,
                                 serde_json::Value::Bool(x) => x.to_string(),
                                 serde_json::Value::Number(x) => x.to_string(),
@@ -316,13 +332,12 @@ pub mod response {
                                 _ => String::new(),
                                 //serde_json::Value::Array(_) => todo!(),
                                 //serde_json::Value::Object(_) => todo!(),
-                            })
-                            // surround values with double quotes
-                            .map(Self::csv_formatting_rules)
-                            .collect();
-                        Some(row.join(","))
-                    }
-                    _ => None,
+                            }
+                        })
+                        // surround values with double quotes
+                        .map(Self::csv_formatting_rules)
+                        .collect();
+                    Some(row.join(","))
                 })
                 .collect();
 
@@ -332,40 +347,6 @@ pub mod response {
             // gcloud bq tool ends with platform-specific newline
             csv.push_str(crate::query::NEWLINE);
             csv
-        }
-
-        #[allow(dead_code)]
-        /// this needs works
-        /// it is not outputting proper json format
-        /// it needs to convert from google bigqquery protobuf
-        pub fn into_json(self) -> serde_json::Value {
-            let mut rows: Vec<serde_json::Value> = Vec::new();
-
-            if let Some(schema) = self.schema {
-                let header: Vec<serde_json::Value> = schema
-                    .fields
-                    .into_iter()
-                    .map(|c| serde_json::Value::String(c.name))
-                    .collect();
-
-                rows.push(serde_json::Value::Array(header));
-            }
-
-            let mut values: Vec<serde_json::Value> = self
-                .rows
-                .into_iter()
-                .filter_map(|v| match v["f"].clone() {
-                    serde_json::Value::Array(a) => {
-                        let row = a.into_iter().map(|v| v["v"].clone()).collect();
-                        Some(serde_json::Value::Array(row))
-                    }
-                    _ => None,
-                })
-                .collect();
-
-            rows.append(values.as_mut());
-
-            serde_json::Value::Array(rows)
         }
     }
 
@@ -424,5 +405,38 @@ pub mod response {
         pub location: String,
         pub debug_info: String,
         pub message: String,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        api::Client, api::ServiceName, query::request::QueryRequestBuilder,
+        query::response::QueryResponse,
+    };
+
+    #[test]
+    pub fn query_test_table() {
+        let query_response = query("select * from test_dataset.test_table");
+        assert_eq!(query_response.total_rows.as_deref(), Some("100"));
+        assert_eq!(query_response.rows.len(), 100);
+    }
+
+    #[test]
+    pub fn query_some_empty() {
+        let query_response = query("select * from test_dataset.some_empty");
+        assert_eq!(query_response.total_rows.as_deref(), Some("5"));
+        assert_eq!(query_response.rows.len(), 5);
+    }
+
+    pub fn query(query: &str) -> QueryResponse {
+        let auth = gauthenticator::from_env().authentication().unwrap();
+        let token = auth.token(None).unwrap();
+        let client = Client::bq_client(
+            token,
+            ServiceName::BigQuery.create("test", Some("http://localhost:9050"), None),
+        );
+        let request = QueryRequestBuilder::new(query.to_string()).build();
+        client.jobs_query(request)
     }
 }
