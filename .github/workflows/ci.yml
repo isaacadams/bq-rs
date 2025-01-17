@@ -39,7 +39,7 @@ jobs:
 
       - uses: 'google-github-actions/setup-gcloud@v2'
         with:
-          version: 'latest'
+          version: '477.0.0'
 
       - name: check versions
         run: gcloud -v
