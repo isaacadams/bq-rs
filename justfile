@@ -30,6 +30,7 @@ service-account-role project name role:
         --role {{role}}
 
 dev:
+  HOST=http://localhost:9050
   docker compose up -d
   bash test/load.sh
 
