@@ -10,6 +10,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   RUSTFLAGS: -D warnings
+  HOST: http://0.0.0.0:9050
 
 jobs:
   test:

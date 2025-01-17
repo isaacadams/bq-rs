@@ -1,5 +1,5 @@
 export BQ_EMULATOR=1
-HOST=http://localhost:9050
+#HOST=http://localhost:9050
 export CLOUDSDK_AUTH_ACCESS_TOKEN=dummy
 
 # Create a dataset
