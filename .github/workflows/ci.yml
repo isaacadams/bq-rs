@@ -20,8 +20,10 @@ jobs:
     services:
       bigquery-emulator:
         image: ghcr.io/goccy/bigquery-emulator:latest
+        env:
+          BIGQUERY_EMULATOR_PROJECT: test
         ports:
-          - '0.0.0.0:9050:9050'
+          - 9050:9050
         options: >-
           --platform=linux/x86_64
 
