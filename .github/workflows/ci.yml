@@ -11,6 +11,8 @@ env:
   RUST_BACKTRACE: full
   RUSTFLAGS: -D warnings
   HOST: http://0.0.0.0:9050
+  BQ_EMULATOR: 1
+  CLOUDSDK_AUTH_ACCESS_TOKEN: dummy
 
 jobs:
   test:
