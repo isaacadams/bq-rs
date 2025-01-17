@@ -44,6 +44,8 @@ jobs:
       - name: check versions
         run: gcloud -v
 
+      - run: gcloud config set project test
+
       - run: bash test/load.sh
 
       - run: cargo test --verbose --all-features --workspace
