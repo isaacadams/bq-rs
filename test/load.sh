@@ -1,6 +1,7 @@
 export BQ_EMULATOR=1
 export CLOUDSDK_AUTH_ACCESS_TOKEN=dummy
 
+
 # Create a dataset
 bq --api $HOST --project_id=test mk test_dataset
 

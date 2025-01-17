@@ -30,9 +30,8 @@ service-account-role project name role:
         --role {{role}}
 
 dev:
-  HOST=http://localhost:9050
   docker compose up -d
-  bash test/load.sh
+  HOST=http://localhost:9050 bash test/load.sh
 
 # just test_query_parity
 test_query_parity:

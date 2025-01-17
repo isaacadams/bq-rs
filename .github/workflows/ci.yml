@@ -46,6 +46,8 @@ jobs:
 
       - run: gcloud config set project test
 
+      - run: gcloud auth list
+
       - run: bash test/load.sh
 
       - run: cargo test --verbose --all-features --workspace
