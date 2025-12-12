@@ -12,12 +12,7 @@ release:
 # just delete_version 0.1.6
 delete_version tag: 
   git tag --delete {{tag}}
-
-tidy: 
-  cargo clippy --verbose --all-features --workspace
-
-clippy-fix:
-  cargo clippy --verbose --all-features --workspace --fix --allow-dirty
+  git push origin --delete {{tag}}
 
 set-service-account file:
     gcloud auth activate-service-account --key-file="{{file}}"

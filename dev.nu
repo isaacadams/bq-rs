@@ -20,3 +20,11 @@ def "main test parity" [] {
     ^code --diff bq-rs.hex bq.hex
     ^md5sum ./test/bq.csv bq-rs.csv
 }
+
+def "main tidy" [--d] {
+    if $d {
+        ^cargo clippy --verbose --all-features --workspace --fix --allow-dirty
+    } else {
+        ^cargo clippy --verbose --all-features --workspace
+    }
+}
