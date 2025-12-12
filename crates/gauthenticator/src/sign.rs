@@ -9,21 +9,19 @@ impl Signer {
     pub fn new(private_key: &str) -> Result<Self, std::io::Error> {
         let key = Self::decode_rsa_key(private_key)?;
         let signing_key = ring::sign::any_supported_type(&key.into())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+            .map_err(|e| io::Error::other(format!("{}", e)))?;
 
         let signer = signing_key
             .choose_scheme(&[rustls::SignatureScheme::RSA_PKCS1_SHA256])
-            .ok_or_else(|| {
-                io::Error::new(io::ErrorKind::Other, "Couldn't choose signing scheme")
-            })?;
+            .ok_or_else(|| io::Error::other("Couldn't choose signing scheme"))?;
 
         Ok(Self { signer })
     }
 
     /// Decode a PKCS8 formatted RSA key.
-    fn decode_rsa_key(
-        pem_pkcs8: &str,
-    ) -> Result<rustls::pki_types::PrivatePkcs8KeyDer, std::io::Error> {
+    fn decode_rsa_key<'a>(
+        pem_pkcs8: &'a str,
+    ) -> Result<rustls::pki_types::PrivatePkcs8KeyDer<'a>, std::io::Error> {
         let mut reader = io::BufReader::new(pem_pkcs8.as_bytes());
         let mut private_keys = rustls_pemfile::pkcs8_private_keys(&mut reader);
         match private_keys.nth(0) {
