@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+#export HOST=http://localhost:9050
 #export BQ_EMULATOR=1
 #export CLOUDSDK_AUTH_ACCESS_TOKEN=dummy
 
