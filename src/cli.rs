@@ -126,7 +126,7 @@ impl Cli {
                             if token.is_empty() {
                                 break;
                             }
-                            log::debug!(
+                            log::info!(
                                 "[Page {}] Requesting page with token: {}...",
                                 iteration,
                                 &token[..token.len().min(50)]
@@ -135,7 +135,7 @@ impl Cli {
                                 client.jobs_query_results(&job_id, &location, Some(&token));
                             let row_count = response.rows.len();
                             total_rows += row_count;
-                            log::debug!(
+                            log::info!(
                                 "[Page {}] Received {} rows in response (total so far: {})",
                                 iteration,
                                 row_count,
@@ -144,7 +144,7 @@ impl Cli {
 
                             // Break if we got 0 rows (no more data)
                             if row_count == 0 {
-                                log::debug!("Breaking: received 0 rows (pagination complete)");
+                                log::info!("Breaking: received 0 rows (pagination complete)");
                                 break;
                             }
 
@@ -152,12 +152,12 @@ impl Cli {
 
                             // Log the next page token for debugging
                             if let Some(ref next_token) = next_page {
-                                log::debug!(
+                                log::info!(
                                     "Next page token: {}...",
                                     &next_token[..next_token.len().min(50)]
                                 );
                             } else {
-                                log::debug!("No next page token (pagination complete)");
+                                log::info!("No next page token (pagination complete)");
                             }
 
                             csv.append(response);
@@ -165,19 +165,19 @@ impl Cli {
                             // Break if no more pages, empty token, or same token (infinite loop protection)
                             match &next_page {
                                 None => {
-                                    log::debug!("Breaking: no next page token");
+                                    log::info!("Breaking: no next page token");
                                     break;
                                 }
                                 Some(next_token) if next_token.is_empty() => {
-                                    log::debug!("Breaking: empty next page token");
+                                    log::info!("Breaking: empty next page token");
                                     break;
                                 }
                                 Some(next_token) if next_token == &token => {
-                                    log::debug!("Breaking: next page token same as current (infinite loop detected)");
+                                    log::info!("Breaking: next page token same as current (infinite loop detected)");
                                     break;
                                 }
                                 _ => {
-                                    log::debug!("Continuing pagination with new token");
+                                    log::info!("Continuing pagination with new token");
                                     page = next_page;
                                 }
                             }
@@ -196,7 +196,7 @@ impl Cli {
                     token,
                     api::ServiceName::BigQuery.create(project_id, api.as_deref(), None),
                 );
-                println!("{}", client.tables_list(&id).into_string()?);
+                println!("{}", client.tables_list(&id));
             }
             Commands::DT(dt) => match dt {
                 DataTransferCommands::List => {
