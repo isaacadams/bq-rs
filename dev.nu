@@ -1,6 +1,6 @@
 # use dev.nu
 def main [] {
-    gcloud config set component_manager/disable_update_check true
+    #gcloud config set component_manager/disable_update_check true
     ^docker compose up -d
 }
 
@@ -50,5 +50,17 @@ def "main bqq" [query: string] {
             | skip 1
             | str join "\n"
             | from csv
+    }
+}
+
+# nu dev.nu query "SELECT * FROM INFORMATION_SCHEMA.SCHEMATA"
+# nu dev.nu query "SELECT * FROM `<dataset_id>.INFORMATION_SCHEMA.TABLES`"
+# e.g. nu dev.nu query "SELECT * FROM `spot-pet-production.Board_Deck.INFORMATION_SCHEMA.TABLES`"
+# nu dev.nu query "SELECT * FROM spot-pet-production.reference_files.all_time_eligible_quoters_query limit 10"
+def "main query" [query: string] {
+    with-env {
+        RUST_LOG: "debug"
+    } {
+        cargo run -- -k ./credentials/key.json query $query
     }
 }
