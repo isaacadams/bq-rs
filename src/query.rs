@@ -1,9 +1,10 @@
-const DEFAULT_LOCATION: &str = "us";
+pub const DEFAULT_LOCATION: &str = "us";
+
 #[cfg(windows)]
-const NEWLINE: &str = "\r\n";
+pub const NEWLINE: &str = "\r\n";
 
 #[cfg(not(windows))]
-const NEWLINE: &str = "\n";
+pub const NEWLINE: &str = "\n";
 
 pub mod request {
 
@@ -206,7 +207,7 @@ pub mod response {
         num_dml_affected_rows: String,
     } */
 
-    #[derive(Debug, Deserialize, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponse {
         pub kind: Option<String>,
@@ -242,6 +243,7 @@ pub mod response {
 
     pub fn retry<T>(handler: impl Fn() -> Option<T>, retries: Option<u32>) -> T {
         let retries = retries.unwrap_or(0);
+        log::debug!("retrying query... (attempt {})", retries);
 
         if retries > 10 {
             panic!("exceeded retry limit");
@@ -273,8 +275,9 @@ pub mod response {
                 .location
                 .as_deref()
                 .unwrap_or(super::DEFAULT_LOCATION.as_ref());
+
             let handler = || {
-                let response = client.jobs_query_results(job_id, location);
+                let response = client.jobs_query_results(job_id, location, None);
 
                 if response.job_complete {
                     Some(response)
@@ -286,39 +289,8 @@ pub mod response {
             retry(handler, None)
         }
 
-        /// follow proper csv convention: https://stackoverflow.com/a/769820
-        fn csv_formatting_rules(mut row: String) -> String {
-            let mut add_quotes = row.contains([',', '\n']);
-
-            if row.contains('"') {
-                row = row.replace('"', "\"\"");
-                add_quotes = true;
-            }
-
-            if add_quotes {
-                row.insert(0, '"');
-                row.push('"');
-            }
-
-            row
-        }
-
-        pub fn into_csv(self) -> String {
-            let mut rows: Vec<String> = Vec::new();
-
-            if let Some(schema) = self.schema {
-                let header: Vec<String> = schema
-                    .fields
-                    .into_iter()
-                    .map(|c| c.name)
-                    .map(Self::csv_formatting_rules)
-                    .collect();
-                rows.push(header.join(","));
-            }
-
-            let mut values: Vec<String> = self
-                .rows
-                .into_iter()
+        pub fn rows_to_csv(rows: Vec<TableRow>) -> Vec<String> {
+            rows.into_iter()
                 .filter_map(|v| {
                     let row: Vec<String> = v
                         .columns?
@@ -335,28 +307,21 @@ pub mod response {
                             }
                         })
                         // surround values with double quotes
-                        .map(Self::csv_formatting_rules)
+                        .map(crate::csv::Csv::csv_formatting_rules)
                         .collect();
                     Some(row.join(","))
                 })
-                .collect();
-
-            rows.append(values.as_mut());
-
-            let mut csv = rows.join(crate::query::NEWLINE);
-            // gcloud bq tool ends with platform-specific newline
-            csv.push_str(crate::query::NEWLINE);
-            csv
+                .collect()
         }
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TableSchema {
         pub fields: Vec<TableFieldSchema>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TableFieldSchema {
         pub name: String,
@@ -374,13 +339,13 @@ pub mod response {
         pub default_value_expression: Option<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct PolicyTags {
         pub names: Vec<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     #[allow(clippy::enum_variant_names)]
     pub enum RoundingMode {
@@ -389,7 +354,7 @@ pub mod response {
         RoundHalfEven,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct JobReference {
         pub project_id: String,
@@ -398,7 +363,7 @@ pub mod response {
         pub location: Option<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ErrorProto {
         pub reason: String,

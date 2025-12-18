@@ -116,28 +116,42 @@ impl Client {
     }
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults>
-    pub fn jobs_query_results(&self, job_id: &str, location: &str) -> QueryResponse {
-        let response = Self::endpoint(
-            &self.token,
-            ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location),
-            ContentType::None,
-        );
-
-        response.into_json().unwrap()
+    pub fn jobs_query_results(
+        &self,
+        job_id: &str,
+        location: &str,
+        page_token: Option<&str>,
+    ) -> QueryResponse {
+        let mut request =
+            ureq::get(&format!("{}/queries/{}", &self.host, job_id)).query("location", location);
+        if let Some(token) = page_token {
+            request = request.query("pageToken", token);
+        }
+        let response = Self::endpoint(&self.token, request, ContentType::None);
+        let response: QueryResponse = response.into_json().unwrap_or_else(|e| {
+            panic!("error parsing response: {}", e);
+        });
+        response
     }
 
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query>
     /// the rows data is returned as a protobuf
     pub fn jobs_query(&self, request: QueryRequest) -> QueryResponse {
+        let request = serde_json::to_value(request).unwrap_or_else(|e| {
+            panic!("error serializing request: {}", e);
+        });
+
         let response = Self::endpoint(
             &self.token,
             ureq::post(&format!("{}/queries", &self.host)),
-            ContentType::Json(serde_json::to_value(request).unwrap()),
+            ContentType::Json(request),
         );
 
-        let response: QueryResponse = response.into_json().unwrap();
+        let response: QueryResponse = response.into_json().unwrap_or_else(|e| {
+            panic!("error parsing response: {}", e);
+        });
 
-        response.retry(self)
+        response
     }
 
     pub fn tables_list(&self, dataset_id: &str) -> ureq::Response {

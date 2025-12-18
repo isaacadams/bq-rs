@@ -93,14 +93,101 @@ impl Cli {
                     api::ServiceName::BigQuery.create(project_id, api.as_deref(), None),
                 );
                 let request = QueryRequestBuilder::new(query).build();
-                let query_response = client.jobs_query(request);
-
                 match format.as_deref() {
-                    Some("csv") => print!("{}", query_response.into_csv()),
+                    Some("csv") | None => {
+                        let query_response = client.jobs_query(request);
+                        let query_response_completed = query_response.retry(&client);
+
+                        let Some(job_id) = query_response_completed.job_reference.job_id.clone()
+                        else {
+                            panic!("no id found for pagination");
+                        };
+
+                        let location = query_response_completed
+                            .job_reference
+                            .location
+                            .as_deref()
+                            .unwrap_or(bq_rs::DEFAULT_LOCATION)
+                            .to_string();
+
+                        let mut page = query_response_completed.page_token.clone();
+                        let mut csv =
+                            bq_rs::csv::Csv::from_query_response(query_response_completed);
+                        let mut iteration = 0;
+                        let mut total_rows = csv.rows.len().saturating_sub(1); // Subtract 1 for header row
+                        const MAX_ITERATIONS: usize = 10000; // Safety limit to prevent infinite loops
+
+                        while let Some(token) = page.clone() {
+                            iteration += 1;
+                            if iteration > MAX_ITERATIONS {
+                                log::warn!("Reached maximum pagination iterations ({}), stopping to prevent infinite loop", MAX_ITERATIONS);
+                                break;
+                            }
+                            if token.is_empty() {
+                                break;
+                            }
+                            log::debug!(
+                                "[Page {}] Requesting page with token: {}...",
+                                iteration,
+                                &token[..token.len().min(50)]
+                            );
+                            let response =
+                                client.jobs_query_results(&job_id, &location, Some(&token));
+                            let row_count = response.rows.len();
+                            total_rows += row_count;
+                            log::debug!(
+                                "[Page {}] Received {} rows in response (total so far: {})",
+                                iteration,
+                                row_count,
+                                total_rows
+                            );
+
+                            // Break if we got 0 rows (no more data)
+                            if row_count == 0 {
+                                log::debug!("Breaking: received 0 rows (pagination complete)");
+                                break;
+                            }
+
+                            let next_page = response.page_token.clone();
+
+                            // Log the next page token for debugging
+                            if let Some(ref next_token) = next_page {
+                                log::debug!(
+                                    "Next page token: {}...",
+                                    &next_token[..next_token.len().min(50)]
+                                );
+                            } else {
+                                log::debug!("No next page token (pagination complete)");
+                            }
+
+                            csv.append(response);
+
+                            // Break if no more pages, empty token, or same token (infinite loop protection)
+                            match &next_page {
+                                None => {
+                                    log::debug!("Breaking: no next page token");
+                                    break;
+                                }
+                                Some(next_token) if next_token.is_empty() => {
+                                    log::debug!("Breaking: empty next page token");
+                                    break;
+                                }
+                                Some(next_token) if next_token == &token => {
+                                    log::debug!("Breaking: next page token same as current (infinite loop detected)");
+                                    break;
+                                }
+                                _ => {
+                                    log::debug!("Continuing pagination with new token");
+                                    page = next_page;
+                                }
+                            }
+                        }
+                        print!("{}", csv.to_string());
+                    }
                     // this is not ready
                     // Some("json") => println!("{}", query_response.into_json()),
                     // default to csv output
-                    _ => print!("{}", query_response.into_csv()),
+                    _ => todo!(),
                 }
             }
             Commands::DatasetList { id } => {
