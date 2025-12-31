@@ -12,15 +12,17 @@ release:
 # just delete_version 0.1.6
 delete_version tag: 
   git tag --delete {{tag}}
+  git push origin --delete {{tag}}
 
-tidy: 
-  cargo clippy --verbose --all-features --workspace
+set-service-account file:
+    gcloud auth activate-service-account --key-file="{{file}}"
 
-clippy-fix: 
-  cargo clippy --verbose --all-features --workspace --fix --allow-dirty
-
-# gcloud_directory
-# mac: ~/.config/gcloud
+# adds role to service account
+# just service-account-role spot-pet-production data-sftp-share roles/bigquery.transfers.get
+service-account-role project name role:
+    gcloud projects add-iam-policy-binding {{project}} \
+        --member "serviceAccount:{{name}}@{{project}}.iam.gserviceaccount.com" \
+        --role {{role}}
 
 list-datasets:
   cargo run -- query "select * from INFORMATION_SCHEMA.SCHEMATA"

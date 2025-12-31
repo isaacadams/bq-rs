@@ -1,0 +1,31 @@
+services:
+  bigquery-emulator:
+    # https://github.com/goccy/bigquery-emulator
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    ports:
+      - "9050:9050"
+    command: ["--project=test"]
+    platform: linux/x86_64
+    #healthcheck: # New: Poll the REST endpoint until responsive
+    #  test: ["CMD-SHELL", "curl -f http://0.0.0.0:9050/ || exit 1"]
+    #  interval: 5s
+    #  timeout: 3s
+    #  retries: 10
+    #  start_period: 10s
+
+  bigquery-client:
+    # https://console.cloud.google.com/artifacts/docker/google.com:cloudsdktool/us/gcr.io/google-cloud-cli?pli=1
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:500.0.0-stable
+    depends_on:
+      - bigquery-emulator
+        #condition: service_healthy
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./test:/test
+    environment:
+      - HOST=http://bigquery-emulator:9050
+      - BQ_EMULATOR=1
+      - CLOUDSDK_AUTH_ACCESS_TOKEN=dummy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["/test/load.sh && tail -f /dev/null"]

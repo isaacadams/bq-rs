@@ -10,19 +10,45 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   RUSTFLAGS: -D warnings
+  HOST: http://0.0.0.0:9050
+  BQ_EMULATOR: 1
+  CLOUDSDK_AUTH_ACCESS_TOKEN: dummy
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      bigquery-emulator:
+        image: ghcr.io/goccy/bigquery-emulator:latest
+        env:
+          BIGQUERY_EMULATOR_PROJECT: test
+        ports:
+          - 9050:9050
+        options: >-
+          --platform=linux/x86_64
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: install cargo
+      - name: Install Cargo
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '477.0.0'
+
+      - name: check versions
+        run: gcloud -v
+
+      - run: gcloud config set project test
+
+      - run: gcloud auth list
+
+      - run: bash test/load.sh
 
       - run: cargo test --verbose --all-features --workspace
 

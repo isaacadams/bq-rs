@@ -3,6 +3,8 @@ use crate::{
     sign, CredentialsSchema,
 };
 use serde::Deserialize;
+use ureq::config::Config;
+use ureq::ResponseExt;
 
 /// this is the audience (aud) in the JWT
 const BIG_QUERY_AUTH_URL: &str = "https://bigquery.googleapis.com/";
@@ -46,48 +48,46 @@ struct TokenResponse {
 impl AuthorizedUserFile {
     /// https://developers.google.com/identity/protocols/oauth2/web-server#httprest_2
     pub fn token(&self) -> TokenResult<String> {
-        let result = ureq::post("https://oauth2.googleapis.com/token")
-            .set("Content-Type", "application/x-www-form-urlencoded")
-            .send_form(&[
+        // In ureq 3.x, we configure the agent to not treat HTTP status codes as errors
+        // so we can access the response body even for error responses
+        let config = Config::builder()
+            .http_status_as_error(false)
+            .build();
+        let agent = ureq::Agent::new_with_config(config);
+        
+        let response = agent
+            .post("https://oauth2.googleapis.com/token")
+            .send_form([
                 ("grant_type", "refresh_token"),
-                ("refresh_token", &self.refresh_token),
-                ("client_id", &self.client_id),
-                ("client_secret", &self.client_secret),
-            ]);
-        let response = Self::handle_error(result)?;
-        let data: TokenResponse = response.into_json()?;
+                ("refresh_token", self.refresh_token.as_str()),
+                ("client_id", self.client_id.as_str()),
+                ("client_secret", self.client_secret.as_str()),
+            ])
+            .map_err(|e| {
+                TokenError::Http(format!("[Transport] {}", e))
+            })?;
+        
+        // Check status code manually
+        let status = response.status();
+        if status.as_u16() >= 400 {
+            let status_text = status.canonical_reason().unwrap_or("Unknown");
+            let url = response.get_uri().to_string();
+            let mut body = response.into_body();
+            let body_str = body.read_to_string().unwrap_or_else(|_| String::new());
+            return Err(TokenError::Http(format!(
+                "[HTTP {}] {} {} {}",
+                status.as_u16(), status_text, url, body_str
+            )));
+        }
+        
+        let mut body = response.into_body();
+        let body_str = body.read_to_string().map_err(|e| {
+            TokenError::Http(format!("Failed to read response body: {}", e))
+        })?;
+        let data: TokenResponse = serde_json::from_str(&body_str).map_err(|e| {
+            TokenError::Http(format!("Failed to parse JSON: {}", e))
+        })?;
         Ok(data.access_token)
-    }
-
-    fn handle_error(
-        result: Result<ureq::Response, ureq::Error>,
-    ) -> Result<ureq::Response, TokenError> {
-        result.map_err(|e| {
-            let error_header = format!("[{}] {}", e.kind(), e);
-            let error = match &e.kind() {
-                ureq::ErrorKind::HTTP => {
-                    if let Some(response) = e.into_response() {
-                        let http_header = format!(
-                            "{} {} {}",
-                            response.status(),
-                            response.status_text(),
-                            response.get_url()
-                        );
-
-                        let Ok(body) = response.into_string() else {
-                            panic!("{}", http_header);
-                        };
-
-                        format!("{} {}", http_header, body)
-                    } else {
-                        error_header
-                    }
-                }
-                _ => error_header,
-            };
-
-            TokenError::Http(error)
-        })
     }
 }
 

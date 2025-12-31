@@ -1,4 +1,13 @@
+pub const DEFAULT_LOCATION: &str = "us";
+
+#[cfg(windows)]
+pub const NEWLINE: &str = "\r\n";
+
+#[cfg(not(windows))]
+pub const NEWLINE: &str = "\n";
+
 pub mod request {
+
     #[derive(Debug)]
     pub struct QueryRequestBuilder {
         query_request: QueryRequest,
@@ -50,8 +59,6 @@ pub mod request {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     /// <https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query#queryrequest>
     pub struct QueryRequest {
-        /// deprecated
-        kind: Option<String>,
         query: String,
         max_results: Option<i32>,
         default_dataset: Option<DatasetReference>,
@@ -81,7 +88,6 @@ pub mod request {
     impl QueryRequest {
         pub fn new(query: String) -> Self {
             Self {
-                kind: None,
                 query: query.replace('\n', ""),
                 max_results: None,
                 default_dataset: None,
@@ -152,13 +158,14 @@ pub mod request {
 
 pub mod response {
     use core::time;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponseDryRun {
         pub job_complete: bool,
         pub job_reference: Option<JobReference>,
-        pub kind: String,
+        pub kind: Option<String>,
         pub schema: TableSchema,
         pub total_bytes_processed: Option<String>,
     }
@@ -200,10 +207,10 @@ pub mod response {
         num_dml_affected_rows: String,
     } */
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct QueryResponse {
-        pub kind: String,
+        pub kind: Option<String>,
         pub etag: Option<String>,
         pub schema: Option<TableSchema>,
         pub job_reference: JobReference,
@@ -211,7 +218,7 @@ pub mod response {
         pub total_rows: Option<String>,
         pub page_token: Option<String>,
         #[serde(default)]
-        pub rows: Vec<serde_json::Value>,
+        pub rows: Vec<TableRow>,
         pub total_bytes_processed: Option<String>,
         pub job_complete: bool,
         pub errors: Option<Vec<ErrorProto>>,
@@ -220,8 +227,23 @@ pub mod response {
         pub num_dml_affected_rows: Option<String>,
     }
 
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TableRow {
+        #[serde(rename = "f", skip_serializing_if = "Option::is_none")]
+        pub columns: Option<Vec<TableCell>>,
+    }
+
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TableCell {
+        #[serde(rename = "v", skip_serializing_if = "Option::is_none")]
+        pub value: Option<serde_json::Value>,
+    }
+
     pub fn retry<T>(handler: impl Fn() -> Option<T>, retries: Option<u32>) -> T {
         let retries = retries.unwrap_or(0);
+        log::debug!("retrying query... (attempt {})", retries);
 
         if retries > 10 {
             panic!("exceeded retry limit");
@@ -248,8 +270,14 @@ pub mod response {
                 panic!("no id found for incomplete job");
             };
 
+            let location = self
+                .job_reference
+                .location
+                .as_deref()
+                .unwrap_or(super::DEFAULT_LOCATION.as_ref());
+
             let handler = || {
-                let response = client.jobs_query_results(job_id, &self.job_reference.location);
+                let response = client.jobs_query_results(job_id, location, None);
 
                 if response.job_complete {
                     Some(response)
@@ -261,44 +289,14 @@ pub mod response {
             retry(handler, None)
         }
 
-        /// follow proper csv convention: https://stackoverflow.com/a/769820
-        fn csv_formatting_rules(mut row: String) -> String {
-            let mut add_quotes = row.contains([',', '\n']);
-
-            if row.contains('"') {
-                row = row.replace('"', "\"\"");
-                add_quotes = true;
-            }
-
-            if add_quotes {
-                row.insert(0, '"');
-                row.push('"');
-            }
-
-            row
-        }
-
-        pub fn into_csv(self) -> String {
-            let mut rows: Vec<String> = Vec::new();
-
-            if let Some(schema) = self.schema {
-                let header: Vec<String> = schema
-                    .fields
-                    .into_iter()
-                    .map(|c| c.name)
-                    .map(Self::csv_formatting_rules)
-                    .collect();
-                rows.push(header.join(","));
-            }
-
-            let mut values: Vec<String> = self
-                .rows
-                .into_iter()
-                .filter_map(|v| match v["f"].clone() {
-                    serde_json::Value::Array(a) => {
-                        let row: Vec<String> = a
-                            .into_iter()
-                            .map(|v| match v["v"].clone() {
+        pub fn rows_to_csv(rows: Vec<TableRow>) -> Vec<String> {
+            rows.into_iter()
+                .filter_map(|v| {
+                    let row: Vec<String> = v
+                        .columns?
+                        .into_iter()
+                        .map(|v| {
+                            match v.value.unwrap_or(serde_json::Value::Null) {
                                 serde_json::Value::String(x) => x,
                                 serde_json::Value::Bool(x) => x.to_string(),
                                 serde_json::Value::Number(x) => x.to_string(),
@@ -306,69 +304,30 @@ pub mod response {
                                 _ => String::new(),
                                 //serde_json::Value::Array(_) => todo!(),
                                 //serde_json::Value::Object(_) => todo!(),
-                            })
-                            // surround values with double quotes
-                            .map(Self::csv_formatting_rules)
-                            .collect();
-                        Some(row.join(","))
-                    }
-                    _ => None,
+                            }
+                        })
+                        // surround values with double quotes
+                        .map(crate::csv::Csv::csv_formatting_rules)
+                        .collect();
+                    Some(row.join(","))
                 })
-                .collect();
-
-            rows.append(values.as_mut());
-
-            rows.join("\n")
-        }
-
-        #[allow(dead_code)]
-        /// this needs works
-        /// it is not outputting proper json format
-        /// it needs to convert from google bigqquery protobuf
-        pub fn into_json(self) -> serde_json::Value {
-            let mut rows: Vec<serde_json::Value> = Vec::new();
-
-            if let Some(schema) = self.schema {
-                let header: Vec<serde_json::Value> = schema
-                    .fields
-                    .into_iter()
-                    .map(|c| serde_json::Value::String(c.name))
-                    .collect();
-
-                rows.push(serde_json::Value::Array(header));
-            }
-
-            let mut values: Vec<serde_json::Value> = self
-                .rows
-                .into_iter()
-                .filter_map(|v| match v["f"].clone() {
-                    serde_json::Value::Array(a) => {
-                        let row = a.into_iter().map(|v| v["v"].clone()).collect();
-                        Some(serde_json::Value::Array(row))
-                    }
-                    _ => None,
-                })
-                .collect();
-
-            rows.append(values.as_mut());
-
-            serde_json::Value::Array(rows)
+                .collect()
         }
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TableSchema {
         pub fields: Vec<TableFieldSchema>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TableFieldSchema {
         pub name: String,
         #[serde(rename = "type")]
         pub field_type: String,
-        pub mode: String,
+        pub mode: Option<String>,
         pub fields: Option<Vec<TableFieldSchema>>,
         pub description: Option<String>,
         pub policy_tags: Option<PolicyTags>,
@@ -380,13 +339,13 @@ pub mod response {
         pub default_value_expression: Option<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct PolicyTags {
         pub names: Vec<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     #[allow(clippy::enum_variant_names)]
     pub enum RoundingMode {
@@ -395,21 +354,54 @@ pub mod response {
         RoundHalfEven,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct JobReference {
         pub project_id: String,
         /// dry runs do not contain a `job_id`
         pub job_id: Option<String>,
-        pub location: String,
+        pub location: Option<String>,
     }
 
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ErrorProto {
         pub reason: String,
         pub location: String,
         pub debug_info: String,
         pub message: String,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        api::Client, api::ServiceName, query::request::QueryRequestBuilder,
+        query::response::QueryResponse,
+    };
+
+    #[test]
+    pub fn query_test_table() {
+        let query_response = query("select * from test_dataset.test_table");
+        assert_eq!(query_response.total_rows.as_deref(), Some("100"));
+        assert_eq!(query_response.rows.len(), 100);
+    }
+
+    #[test]
+    pub fn query_some_empty() {
+        let query_response = query("select * from test_dataset.some_empty");
+        assert_eq!(query_response.total_rows.as_deref(), Some("5"));
+        assert_eq!(query_response.rows.len(), 5);
+    }
+
+    pub fn query(query: &str) -> QueryResponse {
+        let auth = gauthenticator::from_env().authentication().unwrap();
+        let token = auth.token(None).unwrap();
+        let client = Client::bq_client(
+            token,
+            ServiceName::BigQuery.create("test", Some("http://localhost:9050"), None),
+        );
+        let request = QueryRequestBuilder::new(query.to_string()).build();
+        client.jobs_query(request)
     }
 }
